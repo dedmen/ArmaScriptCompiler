@@ -1,0 +1,6 @@
+[submodule "lib/zstd"]
+	path = lib/zstd
+	url = https://github.com/facebook/zstd.git
+[submodule "lib/sqfvm"]
+	path = lib/sqfvm
+	url = https://github.com/SQFvm/vm.git
