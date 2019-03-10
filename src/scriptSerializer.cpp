@@ -184,10 +184,15 @@ CompiledCodeData ScriptSerializer::binaryToCompiledCompressed(std::istream& inpu
 void ScriptSerializer::instructionToBinary(const CompiledCodeData& code, const ScriptInstruction& instruction, std::ostream& output) {
 
     writeT(static_cast<uint8_t>(instruction.type), output);
-    writeT(static_cast<uint32_t>(instruction.offset), output);
-    writeT(static_cast<uint8_t>(instruction.fileIndex), output);
-    writeT(static_cast<uint16_t>(instruction.line), output);
 
+    if (instruction.type != InstructionType::endStatement && instruction.type != InstructionType::push) {
+        //these can't fail, so we don't need source info
+        writeT(static_cast<uint32_t>(instruction.offset), output);
+        writeT(static_cast<uint8_t>(instruction.fileIndex), output);
+        writeT(static_cast<uint16_t>(instruction.line), output);
+    }
+
+    output.flush();
     switch (instruction.type) {
 
         case InstructionType::endStatement: break;
@@ -221,9 +226,16 @@ ScriptInstruction ScriptSerializer::binaryToInstruction(const CompiledCodeData& 
     auto instructionType = readT<uint8_t>(input);
     auto type = static_cast<InstructionType>(instructionType);
 
-    auto offset = readT<uint32_t>(input);
-    auto fileIndex = readT<uint8_t>(input);
-    auto fileLine = readT<uint16_t>(input);
+    uint32_t offset = 0;
+    uint8_t fileIndex = 0;
+    uint16_t fileLine = 0;
+
+    if (type != InstructionType::endStatement && type != InstructionType::push) {
+        //these can't fail, so we don't need source info
+        offset = readT<uint32_t>(input);
+        fileIndex = readT<uint8_t>(input);
+        fileLine = readT<uint16_t>(input);
+    }
 
     switch (type) {
         case InstructionType::endStatement: 

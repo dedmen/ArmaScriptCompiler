@@ -136,6 +136,11 @@ else()
 		"$<$<CONFIG:Release>:/Oi>"
 		"$<$<CONFIG:Release>:/Ot>"
 	)
+	
+	target_compile_options(
+		slibsqfvm PRIVATE 
+		"$<$<CONFIG:Release>:/MT>"
+	)
 	target_link_options("ArmaScriptCompiler" PRIVATE "/OPT:REF" "/OPT:ICF" "/DEBUG:FULL") 
 endif()
 

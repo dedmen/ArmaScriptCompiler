@@ -23,10 +23,18 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path file) {
     std::string scriptCode((std::istreambuf_iterator<char>(inputFile)),
         std::istreambuf_iterator<char>());
 
-    bool errflag;
-    auto preprocessedScript = sqf::parse::preprocessor::parse(vm.get(), scriptCode, errflag, file.string());
-    auto ast = vm->parse_sqf_cst(preprocessedScript);
+    bool errflag = false;
 
+    if (scriptCode.find("script_component") == std::string::npos) {
+        throw std::domain_error("no include");
+    }
+
+
+    auto preprocessedScript = sqf::parse::preprocessor::parse(vm.get(), scriptCode, errflag, file.string());
+    if (errflag) __debugbreak();
+    bool errorflag = false;
+    auto ast = vm->parse_sqf_cst(preprocessedScript, errorflag);
+    if (errorflag) __debugbreak();
     //print_navigate_ast(std::cout, ast, sqf::parse::sqf::astkindname);
 
     CompiledCodeData stuff;
@@ -52,8 +60,6 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
         temp.fileLoc.insert({ filename, index });
         return index;
     };
-
-
 
     auto nodeType = static_cast<sqf::parse::sqf::sqfasttypes::sqfasttypes>(node.kind);
     switch (nodeType) {
@@ -159,8 +165,10 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
         ScriptConstant newConst;
         std::vector<ScriptInstruction> instr;
-        ASTToInstructions(output, temp, instr, node.children[0]);
+        if (!node.children.empty())
+            ASTToInstructions(output, temp, instr, node.children[0]);
         newConst = instr;
+        //#TODO duplicate detection
         auto index = output.constants.size();
         output.constants.emplace_back(std::move(newConst));
 
@@ -195,7 +203,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
             if (i != 0)
             {
                 //end statement
-                instructions.emplace_back(ScriptInstruction{ InstructionType::endStatement, node.offset, 0, node.line });
+                instructions.emplace_back(ScriptInstruction{ InstructionType::endStatement, node.offset, 0, 0 });
             }
             ASTToInstructions(output, temp, instructions, node.children[i]);
             auto subnode = node.children[i];
