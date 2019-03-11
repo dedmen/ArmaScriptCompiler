@@ -49,12 +49,11 @@ void processFile(ScriptCompiler& comp, std::filesystem::path path) {
         ScriptSerializer::compiledToBinaryCompressed(compiledData, output);
         //ScriptSerializer::compiledToBinary(compiledData, output);
         output.flush();
-        //auto outputPath2 = i->path().parent_path() / (i->path().stem().string() + ".sqfa");
+        //auto outputPath2 = path.parent_path() / (path.stem().string() + ".sqfa");
         //std::ofstream output2(outputPath2);
         //ScriptSerializer::compiledToHumanReadable(compiledData, output2);
         //output2.flush();
-    }
-    catch (std::domain_error&) {
+    } catch (std::domain_error&) {
 
     }
 }

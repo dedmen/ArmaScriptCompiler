@@ -213,16 +213,10 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
                                               //    for (auto& it : node.children)
                                               //        stuffAST(output, instructions, it);
     default:
-
-        for (size_t i = 0; i < node.children.size(); i++)
-        {
-            if (i != 0)
-            {
-                //end statement
+        for (size_t i = 0; i < node.children.size(); i++) {
+            if (i != 0) //end statement
                 instructions.emplace_back(ScriptInstruction{ InstructionType::endStatement, node.offset, 0, 0 });
-            }
             ASTToInstructions(output, temp, instructions, node.children[i]);
-            auto subnode = node.children[i];
         }
     }
 

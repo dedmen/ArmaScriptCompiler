@@ -35,9 +35,6 @@ set(LIBRARY_PATH_SQFVM "${CMAKE_SOURCE_DIR}/lib/sqfvm")
 add_definitions(/DNOMINMAX)
 add_definitions(/D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS) #No I don't cheat!
 
-
-
-
 #don't ask me
 
 if(NOT CMAKE_C_COMPILE_OBJECT)
@@ -86,6 +83,8 @@ set(SQFVM_BUILD_STATIC_LIBRARY OFF CACHE BOOL "no" FORCE)
 set(SQFVM_BUILD_STATIC_LIBRARY_NC ON CACHE BOOL "yes" FORCE)
 
 add_subdirectory(${LIBRARY_PATH_SQFVM})
+add_definitions(/DLOADFILE_CACHE) #SQF VM fileio.cpp cache
+
 
 
 add_executable("ArmaScriptCompiler" ${SOURCES_ASC} ${SOURCES_SQFVM})
@@ -136,13 +135,22 @@ else()
 		"$<$<CONFIG:Release>:/Ob2>"
 		"$<$<CONFIG:Release>:/Oi>"
 		"$<$<CONFIG:Release>:/Ot>"
+		"$<$<CONFIG:Release>:/GL>"
 	)
 	
 	target_compile_options(
 		slibsqfvm_nc PRIVATE 
+		"/MP" "/Zi"
 		"$<$<CONFIG:Release>:/MT>"
+		"$<$<CONFIG:Release>:/Ox>"
+		"$<$<CONFIG:Release>:/Ob2>"
+		"$<$<CONFIG:Release>:/Oi>"
+		"$<$<CONFIG:Release>:/Ot>"
+		"$<$<CONFIG:Release>:/GL>"
+		"/DLOADFILE_CACHE"
 	)
-	target_link_options("ArmaScriptCompiler" PRIVATE "/OPT:REF" "/OPT:ICF" "/DEBUG:FULL") 
+	target_link_options("ArmaScriptCompiler" PRIVATE "/OPT:REF" "/OPT:ICF" "/DEBUG:FULL" "/LTCG") 
+	target_link_options(slibsqfvm_nc PRIVATE "/OPT:REF" "/OPT:ICF" "/DEBUG:FULL" "/LTCG") 
 endif()
 
 #Binary signing
