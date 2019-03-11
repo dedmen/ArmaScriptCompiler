@@ -26,9 +26,11 @@ ScriptCompiler::ScriptCompiler(const std::vector<std::filesystem::path>& include
 
 CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path file) {
     std::ifstream inputFile(file);
-    std::string scriptCode((std::istreambuf_iterator<char>(inputFile)),
-        std::istreambuf_iterator<char>());
-
+    
+    auto filesize = std::filesystem::file_size(file);
+    std::string scriptCode;
+    scriptCode.resize(filesize);
+    inputFile.read(scriptCode.data(), filesize);
     bool errflag = false;
 
     if (scriptCode.find("script_component") == std::string::npos) {
