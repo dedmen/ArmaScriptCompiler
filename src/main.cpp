@@ -11,13 +11,17 @@
 #include "compiledCode.hpp"
 #include "scriptCompiler.hpp"
 #include "scriptSerializer.hpp"
+#include <mutex>
+#include <queue>
 
+std::queue<std::filesystem::path> tasks;
+std::mutex taskMutex;
+bool threadsShouldRun = true;
 
-void compileRecursive(ScriptCompiler& comp, std::filesystem::path inputDir) {
+void compileRecursive(std::filesystem::path inputDir) {
 
     const std::filesystem::path ignoreGit(".git");
     const std::filesystem::path ignoreSvn(".svn");
-
     //recursively search for pboprefix
     for (auto i = std::filesystem::recursive_directory_iterator(inputDir, std::filesystem::directory_options::follow_directory_symlink);
         i != std::filesystem::recursive_directory_iterator();
@@ -29,20 +33,29 @@ void compileRecursive(ScriptCompiler& comp, std::filesystem::path inputDir) {
         if (!i->is_regular_file()) continue;
 
         if (i->path().filename().extension() == ".sqf"sv) {
-
-            try {
-
-                auto outputPath = i->path().parent_path() / (i->path().stem().string() + ".sqfc");
-                std::cout << "compile " << outputPath.generic_string() << "\n";
-
-                auto compiledData = comp.compileScript(i->path().generic_string());
-                std::ofstream output(outputPath);
-                ScriptSerializer::compiledToBinaryCompressed(compiledData, output);
-                output.clear();
-            } catch (std::domain_error&) {
-
-            }
+            if (i->path().filename() == "fnc_zeusAttributes.sqf") continue; //Hard ignore for missing include file
+            tasks.emplace(i->path());
         }
+    }
+}
+
+void processFile(ScriptCompiler& comp, std::filesystem::path path) {
+    try {
+        auto outputPath = path.parent_path() / (path.stem().string() + ".sqfc");
+        std::cout << "compile " << outputPath.generic_string() << "\n";
+
+        auto compiledData = comp.compileScript(path.generic_string());
+        std::ofstream output(outputPath);
+        ScriptSerializer::compiledToBinaryCompressed(compiledData, output);
+        //ScriptSerializer::compiledToBinary(compiledData, output);
+        output.flush();
+        //auto outputPath2 = i->path().parent_path() / (i->path().stem().string() + ".sqfa");
+        //std::ofstream output2(outputPath2);
+        //ScriptSerializer::compiledToHumanReadable(compiledData, output2);
+        //output2.flush();
+    }
+    catch (std::domain_error&) {
+
     }
 }
 
@@ -52,7 +65,43 @@ int main(int argc, char* argv[]) {
     std::ifstream inputFile("I:/ACE3/addons/advanced_ballistics/functions/fnc_readWeaponDataFromConfig.sqf");
 
     ScriptCompiler compiler({ static_cast<std::filesystem::path>("I:\\ACE3") });
-    compileRecursive(compiler, "I:/ACE3/addons");
+    compileRecursive("I:/ACE3/addons");
+    //compileRecursive("I:/ACE3/addons/nightvision");
+    //compileRecursive("I:/ACE3/addons/aircraft");
+
+    auto workerFunc = []() {
+        ScriptCompiler compiler({ static_cast<std::filesystem::path>("I:\\ACE3") });
+
+
+        while (threadsShouldRun) {
+            std::unique_lock<std::mutex> lock(taskMutex);
+            const auto task(std::move(tasks.front()));
+            tasks.pop();
+            if (tasks.empty())
+                threadsShouldRun = false;
+            lock.unlock();
+            processFile(compiler, task);
+        }
+
+    };
+
+    std::unique_ptr<std::thread> myThread = std::make_unique<std::thread>(workerFunc);
+    std::unique_ptr<std::thread> myThread2 = std::make_unique<std::thread>(workerFunc);
+    std::unique_ptr<std::thread> myThread3 = std::make_unique<std::thread>(workerFunc);
+    std::unique_ptr<std::thread> myThread4 = std::make_unique<std::thread>(workerFunc);
+    std::unique_ptr<std::thread> myThread5 = std::make_unique<std::thread>(workerFunc);
+    std::unique_ptr<std::thread> myThread6 = std::make_unique<std::thread>(workerFunc);
+    std::unique_ptr<std::thread> myThread7 = std::make_unique<std::thread>(workerFunc);
+
+    workerFunc();
+
+    myThread->join();
+    myThread2->join();
+    myThread3->join();
+    myThread4->join();
+    myThread5->join();
+    myThread6->join();
+    myThread7->join();
 
     /*
     auto compiledScript = compiler.compileScript("I:/ACE3/addons/advanced_ballistics/functions/fnc_readWeaponDataFromConfig.sqf");

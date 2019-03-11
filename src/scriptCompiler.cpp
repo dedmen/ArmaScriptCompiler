@@ -1,4 +1,5 @@
 #include "scriptCompiler.hpp"
+#include "commandList.hpp"
 #include <charconv>
 #include <fstream>
 
@@ -7,14 +8,19 @@
 #include <parsesqf.h>
 #include <callstack.h>
 #include <commandmap.h>
-
-
-
-
+#include <iostream>
+#include <mutex>
+std::once_flag commandMapInitFlag;
 
 ScriptCompiler::ScriptCompiler(const std::vector<std::filesystem::path>& includePaths) {
     vm = std::make_unique<sqf::virtualmachine>();
-    sqf::commandmap::get().init();
+    vm->err(&std::cout);
+    vm->wrn(&std::cout);
+
+    std::call_once(commandMapInitFlag, []() {
+        CommandList::init();
+        //sqf::commandmap::get().init();
+    });
     initIncludePaths(includePaths);
 }
 
@@ -31,7 +37,13 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path file) {
 
 
     auto preprocessedScript = sqf::parse::preprocessor::parse(vm.get(), scriptCode, errflag, file.string());
-    if (errflag) __debugbreak();
+    vm->err_buffprint();
+    vm->wrn_buffprint();
+    if (errflag) {
+        __debugbreak();
+        vm->err_clear();
+        return CompiledCodeData();
+    }
     bool errorflag = false;
     auto ast = vm->parse_sqf_cst(preprocessedScript, errorflag);
     if (errorflag) __debugbreak();
@@ -127,11 +139,16 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
         break;
     }
     case sqf::parse::sqf::sqfasttypes::UNARYOP: __debugbreak(); break;
-    case sqf::parse::sqf::sqfasttypes::NUMBER: {
+    case sqf::parse::sqf::sqfasttypes::NUMBER:
+    case sqf::parse::sqf::sqfasttypes::HEXNUMBER: {
         ScriptConstant newConst;
 
         float val;
-        auto res = std::from_chars(node.content.data(), node.content.data() + node.content.size(), val);
+        auto res = 
+            (nodeType == sqf::parse::sqf::sqfasttypes::HEXNUMBER) ?
+            std::from_chars(node.content.data()+2, node.content.data() + node.content.size(), val, std::chars_format::hex)
+            :            
+            std::from_chars(node.content.data(), node.content.data() + node.content.size(), val);
         if (res.ec == std::errc::invalid_argument) {
             throw std::runtime_error("invalid scalar at: " + node.file + ":" + std::to_string(node.line));
         }
@@ -145,7 +162,6 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
         instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
         break;
     }
-    case sqf::parse::sqf::sqfasttypes::HEXNUMBER: __debugbreak(); break;
     case sqf::parse::sqf::sqfasttypes::VARIABLE: {
         //getvariable
         auto varname = node.content;

@@ -82,7 +82,8 @@ set(INCLUDE_PATH_ZSTD "${LIBRARY_PATH_ZSTD}/lib")
 
 set(SQFVM_BUILD_EXECUTABLE OFF CACHE BOOL "no" FORCE)
 set(SQFVM_BUILD_LIBRARY OFF CACHE BOOL "no" FORCE)
-set(SQFVM_BUILD_STATIC_LIBRARY ON CACHE BOOL "yes" FORCE)
+set(SQFVM_BUILD_STATIC_LIBRARY OFF CACHE BOOL "no" FORCE)
+set(SQFVM_BUILD_STATIC_LIBRARY_NC ON CACHE BOOL "yes" FORCE)
 
 add_subdirectory(${LIBRARY_PATH_SQFVM})
 
@@ -93,7 +94,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INCLUDE_PATH_ZSTD}) # ${INCLUD
 
 #target_link_libraries("ArmaScriptCompiler" ${CMAKE_THREAD_LIBS_INIT})
 
-target_link_libraries("ArmaScriptCompiler" slibsqfvm libzstd_static)
+target_link_libraries("ArmaScriptCompiler" slibsqfvm_nc libzstd_static)
 
 set_target_properties("ArmaScriptCompiler" PROPERTIES PREFIX "")
 set_target_properties("ArmaScriptCompiler" PROPERTIES FOLDER ArmaScriptCompiler)
@@ -138,7 +139,7 @@ else()
 	)
 	
 	target_compile_options(
-		slibsqfvm PRIVATE 
+		slibsqfvm_nc PRIVATE 
 		"$<$<CONFIG:Release>:/MT>"
 	)
 	target_link_options("ArmaScriptCompiler" PRIVATE "/OPT:REF" "/OPT:ICF" "/DEBUG:FULL") 
