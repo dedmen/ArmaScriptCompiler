@@ -89,7 +89,7 @@ void writeT(Type data, std::ostream& stream) {
 
 
 void ScriptSerializer::compiledToBinary(const CompiledCodeData& code, std::ostream& output) {
-    writeT<uint32_t>(1, output); //version
+    writeT<uint32_t>(code.version, output); //version
     output.flush();
     writeConstants(code, output);
     output.flush();
@@ -107,7 +107,7 @@ void ScriptSerializer::compiledToBinary(const CompiledCodeData& code, std::ostre
 
 CompiledCodeData ScriptSerializer::binaryToCompiled(std::istream& input) {
     CompiledCodeData output;
-    auto version = readT<uint32_t>(input);
+    output.version = readT<uint32_t>(input);
     while (!input.eof()) {
         auto elementType = readT<uint8_t>(input);
         auto type = static_cast<SerializedBlockType>(elementType);

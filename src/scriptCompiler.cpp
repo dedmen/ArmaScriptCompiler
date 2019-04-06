@@ -182,6 +182,8 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
     case sqf::parse::sqf::sqfasttypes::STRING: {
         ScriptConstant newConst;
         newConst = node.content;
+        if (node.content.front() == '"' && node.content.back() == '"')
+            newConst = node.content.substr(1, node.content.length() - 2);
         auto index = output.constants.size();
         output.constants.emplace_back(std::move(newConst));
 
