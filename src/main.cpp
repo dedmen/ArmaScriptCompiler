@@ -13,6 +13,7 @@
 #include "scriptSerializer.hpp"
 #include <mutex>
 #include <queue>
+#include <base64.h>
 
 std::queue<std::filesystem::path> tasks;
 std::mutex taskMutex;
@@ -45,15 +46,23 @@ void processFile(ScriptCompiler& comp, std::filesystem::path path) {
         std::cout << "compile " << outputPath.generic_string() << "\n";
 
         auto compiledData = comp.compileScript(path.generic_string());
-        std::ofstream output(outputPath);
+        std::stringstream output;
         ScriptSerializer::compiledToBinaryCompressed(compiledData, output);
+
+        auto data = output.str();
+        auto encoded = base64_encode(data);
+
+        //std::ofstream outputFile(path);
+
+        //outputFile.write(encoded.data(), encoded.length());
+
         //ScriptSerializer::compiledToBinary(compiledData, output);
-        output.flush();
+        //outputFile.flush();
         //auto outputPath2 = path.parent_path() / (path.stem().string() + ".sqfa");
         //std::ofstream output2(outputPath2);
         //ScriptSerializer::compiledToHumanReadable(compiledData, output2);
         //output2.flush();
-    } catch (std::domain_error&) {
+    } catch (std::domain_error& err) {
 
     }
 }

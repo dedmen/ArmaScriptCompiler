@@ -30,7 +30,7 @@ set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
 
 set(LIBRARY_PATH_ZSTD "${CMAKE_SOURCE_DIR}/lib/zstd")
 set(LIBRARY_PATH_SQFVM "${CMAKE_SOURCE_DIR}/lib/sqfvm")
-
+set(LIBRARY_PATH_B64  "${CMAKE_SOURCE_DIR}/lib/cpp-base64")
 
 add_definitions(/DNOMINMAX)
 add_definitions(/D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS) #No I don't cheat!
@@ -47,7 +47,7 @@ endif()
 
 
 
-file(GLOB_RECURSE SOURCES_ASC "src/*.hpp" "src/*.cpp")
+file(GLOB_RECURSE SOURCES_ASC "src/*.hpp" "src/*.cpp" "${LIBRARY_PATH_B64}/base64.cpp")
 SOURCE_GROUP("src" FILES ${SOURCES_ASC})
 #zstd
 SET(ZSTD_BUILD_PROGRAMS OFF CACHE BOOL "no programs" FORCE)
@@ -89,7 +89,7 @@ add_definitions(/DLOADFILE_CACHE) #SQF VM fileio.cpp cache
 
 add_executable("ArmaScriptCompiler" ${SOURCES_ASC} ${SOURCES_SQFVM})
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INCLUDE_PATH_ZSTD}) # ${INCLUDE_PATH_ZSTD} ${INCLUDE_PATH_SQFVM}
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INCLUDE_PATH_ZSTD} ${LIBRARY_PATH_B64}) # ${INCLUDE_PATH_ZSTD} ${INCLUDE_PATH_SQFVM}
 
 #target_link_libraries("ArmaScriptCompiler" ${CMAKE_THREAD_LIBS_INIT})
 

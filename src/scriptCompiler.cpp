@@ -33,7 +33,16 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path file) {
     inputFile.read(scriptCode.data(), filesize);
     bool errflag = false;
 
-    if (scriptCode.find("script_component") == std::string::npos) {
+    if (
+        static_cast<unsigned char>(scriptCode[0]) == 0xef &&
+        static_cast<unsigned char>(scriptCode[1]) == 0xbb &&
+        static_cast<unsigned char>(scriptCode[2]) == 0xbf
+        ) {
+        scriptCode.erase(0, 3);
+    }
+
+
+    if (scriptCode.find("script_component.hpp\"") == std::string::npos) {
         throw std::domain_error("no include");
     }
 
