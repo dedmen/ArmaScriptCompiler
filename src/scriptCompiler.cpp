@@ -97,7 +97,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
             nodeType == sqf::parse::sqf::sqfasttypes::ASSIGNMENT ?
             InstructionType::assignTo
             :
-            InstructionType::assignToLocal
+            InstructionType::assignToLocal//#TODO tolower
             , node.offset, getFileIndex(node.file), node.line, varname });
     }
                                                         break;
@@ -126,7 +126,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
         ASTToInstructions(output, temp, instructions, node.children[0]);
         //get right arg on stack
         ASTToInstructions(output, temp, instructions, node.children[2]);
-        //push binary op
+        //push binary op//#TODO tolower
         instructions.emplace_back(ScriptInstruction{ InstructionType::callBinary, node.offset, getFileIndex(node.file), node.line, node.children[1].content });
 
         break;
@@ -135,7 +135,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
     case sqf::parse::sqf::sqfasttypes::PRIMARYEXPRESSION: __debugbreak(); break;
     case sqf::parse::sqf::sqfasttypes::NULAROP: {
-        //push nular op
+        //push nular op//#TODO tolower
         instructions.emplace_back(ScriptInstruction{ InstructionType::callNular, node.offset, getFileIndex(node.file), node.line, node.content });
         break;
     }
@@ -145,7 +145,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
         //get right arg on stack
         ASTToInstructions(output, temp, instructions, node.children[1]);
-        //push unary op
+        //push unary op//#TODO tolower
         instructions.emplace_back(ScriptInstruction{ InstructionType::callUnary, node.offset, getFileIndex(node.file), node.line, node.children[0].content });
         break;
     }
@@ -175,7 +175,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
     }
     case sqf::parse::sqf::sqfasttypes::VARIABLE: {
         //getvariable
-        auto varname = node.content;
+        auto varname = node.content;//#TODO tolower
         instructions.emplace_back(ScriptInstruction{ InstructionType::getVariable, node.offset, getFileIndex(node.file), node.line, varname });
         break;
     }

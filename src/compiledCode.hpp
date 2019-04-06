@@ -17,6 +17,15 @@ getVariable <name>
 makeArray <size>
 */
 
+#ifndef ASC_INTERCEPT
+#define STRINGTYPE std::string
+#else
+#define STRINGTYPE intercept::types::r_string
+#include <intercept.hpp>
+#endif
+
+
+
 enum class InstructionType {
     endStatement,
     push,
@@ -35,7 +44,7 @@ struct ScriptInstruction {
     uint8_t fileIndex;
     size_t line;
     //content string, or constant index
-    std::variant<std::string,uint64_t> content;
+    std::variant<STRINGTYPE,uint64_t> content;
 };
 
 enum class ConstantType {
@@ -45,7 +54,7 @@ enum class ConstantType {
     boolean
 };
 
-using ScriptConstant = std::variant<std::vector<ScriptInstruction>, std::string, float, bool>;
+using ScriptConstant = std::variant<std::vector<ScriptInstruction>, STRINGTYPE, float, bool>;
 
 constexpr ConstantType getConstantType(const ScriptConstant& c) {
     switch (c.index()) {
@@ -61,6 +70,12 @@ constexpr ConstantType getConstantType(const ScriptConstant& c) {
 struct CompiledCodeData {
     std::vector<ScriptInstruction> instructions;
     std::vector<ScriptConstant> constants;
-    std::vector<std::string> fileNames;
+    std::vector<STRINGTYPE> fileNames;
+
+#ifdef ASC_INTERCEPT
+    std::vector<game_value> builtConstants;
+#endif
+
+
     //#TODO compress constants, don't have duplicates for a number or string
 };

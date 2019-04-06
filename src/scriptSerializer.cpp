@@ -21,7 +21,7 @@ void ScriptSerializer::compiledToHumanReadable(const CompiledCodeData& code, std
                 output << "push CODE " << "DUMMY" << "\n";
                 break;
             case ConstantType::string:
-                output << "push STRING " << std::get<std::string>(constant) << "\n";
+                output << "push STRING " << std::get<STRINGTYPE>(constant) << "\n";
                 break;
             case ConstantType::scalar:
                 output << "push SCALAR " << std::get<float>(constant) << "\n";
@@ -33,22 +33,22 @@ void ScriptSerializer::compiledToHumanReadable(const CompiledCodeData& code, std
             }
         } break;
         case InstructionType::callUnary:
-            output << "callUnary " << std::get<std::string>(it.content) << "\n";
+            output << "callUnary " << std::get<STRINGTYPE>(it.content) << "\n";
             break;
         case InstructionType::callBinary:
-            output << "callBinary " << std::get<std::string>(it.content) << "\n";
+            output << "callBinary " << std::get<STRINGTYPE>(it.content) << "\n";
             break;
         case InstructionType::callNular:
-            output << "callNular " << std::get<std::string>(it.content) << "\n";
+            output << "callNular " << std::get<STRINGTYPE>(it.content) << "\n";
             break;
         case InstructionType::assignTo:
-            output << "assignTo " << std::get<std::string>(it.content) << "\n";
+            output << "assignTo " << std::get<STRINGTYPE>(it.content) << "\n";
             break;
         case InstructionType::assignToLocal:
-            output << "assignToLocal " << std::get<std::string>(it.content) << "\n";
+            output << "assignToLocal " << std::get<STRINGTYPE>(it.content) << "\n";
             break;
         case InstructionType::getVariable:
-            output << "getVariable " << std::get<std::string>(it.content) << "\n";
+            output << "getVariable " << std::get<STRINGTYPE>(it.content) << "\n";
             break;
         case InstructionType::makeArray:
             output << "makeArray " << std::get<uint64_t>(it.content) << "\n";
@@ -205,7 +205,7 @@ void ScriptSerializer::instructionToBinary(const CompiledCodeData& code, const S
         case InstructionType::assignTo:
         case InstructionType::assignToLocal:
         case InstructionType::getVariable:
-            output.write(std::get<std::string>(instruction.content).c_str(), std::get<std::string>(instruction.content).size() + 1);
+            output.write(std::get<STRINGTYPE>(instruction.content).c_str(), std::get<STRINGTYPE>(instruction.content).size() + 1);
             break;
         case InstructionType::makeArray:
             writeT(static_cast<uint32_t>(std::get<uint64_t>(instruction.content)), output);
@@ -254,7 +254,7 @@ ScriptInstruction ScriptSerializer::binaryToInstruction(const CompiledCodeData& 
             std::string content;
             std::getline(input, content, '\0');
 
-            return ScriptInstruction{ type, offset, fileIndex, fileLine,content };
+            return ScriptInstruction{ type, offset, fileIndex, fileLine, static_cast<STRINGTYPE>(content) };
         }
         case InstructionType::makeArray: {
             auto arraySize = readT<uint32_t>(input);
@@ -287,7 +287,7 @@ void ScriptSerializer::writeConstants(const CompiledCodeData& code, std::ostream
             instructionsToBinary(code, instructions, output);
         } break;
         case ConstantType::string:
-            output.write(std::get<std::string>(constant).c_str(), std::get<std::string>(constant).size() + 1); 
+            output.write(std::get<STRINGTYPE>(constant).c_str(), std::get<STRINGTYPE>(constant).size() + 1);
             break;
         case ConstantType::scalar:
             writeT(std::get<float>(constant), output);
@@ -316,7 +316,11 @@ void ScriptSerializer::readConstants(CompiledCodeData& code, std::istream& input
             case ConstantType::string: {
                 std::string content;
                 std::getline(input, content, '\0');
+#ifndef ASC_INTERCEPT
                 code.constants.emplace_back(std::move(content));
+#else
+                code.constants.emplace_back(static_cast<STRINGTYPE>(content));
+#endif
             } break;
             case ConstantType::scalar: {
                 auto data = readT<float>(input);
