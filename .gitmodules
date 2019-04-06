@@ -4,3 +4,6 @@
 [submodule "lib/sqfvm"]
 	path = lib/sqfvm
 	url = https://github.com/SQFvm/vm.git
+[submodule "lib/cpp-base64"]
+	path = lib/cpp-base64
+	url = https://github.com/ReneNyffenegger/cpp-base64.git
