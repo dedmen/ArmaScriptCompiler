@@ -58,7 +58,7 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path file) {
     bool errorflag = false;
     auto ast = vm->parse_sqf_cst(preprocessedScript, errorflag);
     if (errorflag) __debugbreak();
-    //print_navigate_ast(std::cout, ast, sqf::parse::sqf::astkindname);
+    //print_navigate_ast(&std::cout, ast, sqf::parse::sqf::astkindname);
 
     CompiledCodeData stuff;
     CompileTempData temp;
@@ -92,7 +92,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
         auto varname = node.children[0].content;
         //need value on stack first
         ASTToInstructions(output, temp, instructions, node.children[1]);
-
+        std::transform(varname.begin(), varname.end(), varname.begin(), ::tolower);
         instructions.emplace_back(ScriptInstruction{
             nodeType == sqf::parse::sqf::sqfasttypes::ASSIGNMENT ?
             InstructionType::assignTo
@@ -126,8 +126,10 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
         ASTToInstructions(output, temp, instructions, node.children[0]);
         //get right arg on stack
         ASTToInstructions(output, temp, instructions, node.children[2]);
-        //push binary op//#TODO tolower
-        instructions.emplace_back(ScriptInstruction{ InstructionType::callBinary, node.offset, getFileIndex(node.file), node.line, node.children[1].content });
+        //push binary op
+        auto name = node.children[1].content;
+        std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+        instructions.emplace_back(ScriptInstruction{ InstructionType::callBinary, node.offset, getFileIndex(node.file), node.line, name });
 
         break;
     }
@@ -135,8 +137,10 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
     case sqf::parse::sqf::sqfasttypes::PRIMARYEXPRESSION: __debugbreak(); break;
     case sqf::parse::sqf::sqfasttypes::NULAROP: {
-        //push nular op//#TODO tolower
-        instructions.emplace_back(ScriptInstruction{ InstructionType::callNular, node.offset, getFileIndex(node.file), node.line, node.content });
+        //push nular op
+        auto name = node.content;
+        std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+        instructions.emplace_back(ScriptInstruction{ InstructionType::callNular, node.offset, getFileIndex(node.file), node.line, name });
         break;
     }
     case sqf::parse::sqf::sqfasttypes::UNARYEXPRESSION: {
@@ -145,8 +149,10 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
         //get right arg on stack
         ASTToInstructions(output, temp, instructions, node.children[1]);
-        //push unary op//#TODO tolower
-        instructions.emplace_back(ScriptInstruction{ InstructionType::callUnary, node.offset, getFileIndex(node.file), node.line, node.children[0].content });
+        //push unary op
+        auto name = node.children[0].content;
+        std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+        instructions.emplace_back(ScriptInstruction{ InstructionType::callUnary, node.offset, getFileIndex(node.file), node.line, name });
         break;
     }
     case sqf::parse::sqf::sqfasttypes::UNARYOP: __debugbreak(); break;
@@ -175,7 +181,8 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
     }
     case sqf::parse::sqf::sqfasttypes::VARIABLE: {
         //getvariable
-        auto varname = node.content;//#TODO tolower
+        auto varname = node.content;
+        std::transform(varname.begin(), varname.end(), varname.begin(), ::tolower);
         instructions.emplace_back(ScriptInstruction{ InstructionType::getVariable, node.offset, getFileIndex(node.file), node.line, varname });
         break;
     }
@@ -183,6 +190,8 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
         ScriptConstant newConst;
         newConst = node.content;
         if (node.content.front() == '"' && node.content.back() == '"')
+            newConst = node.content.substr(1, node.content.length() - 2);
+        if (node.content.front() == '\'' && node.content.back() == '\'')
             newConst = node.content.substr(1, node.content.length() - 2);
         auto index = output.constants.size();
         output.constants.emplace_back(std::move(newConst));
@@ -194,8 +203,9 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
         ScriptConstant newConst;
         std::vector<ScriptInstruction> instr;
-        if (!node.children.empty())
-            ASTToInstructions(output, temp, instr, node.children[0]);
+         for (auto& it : node.children)
+            ASTToInstructions(output, temp, instr, it);
+
         newConst = instr;
         //#TODO duplicate detection
         auto index = output.constants.size();
@@ -227,7 +237,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
                                               //        stuffAST(output, instructions, it);
     default:
         for (size_t i = 0; i < node.children.size(); i++) {
-            if (i != 0) //end statement
+            //if (i != 0) //end statement
                 instructions.emplace_back(ScriptInstruction{ InstructionType::endStatement, node.offset, 0, 0 });
             ASTToInstructions(output, temp, instructions, node.children[i]);
         }

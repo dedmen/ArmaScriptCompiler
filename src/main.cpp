@@ -96,6 +96,7 @@ int main(int argc, char* argv[]) {
 
         while (threadsShouldRun) {
             std::unique_lock<std::mutex> lock(taskMutex);
+            if (tasks.empty()) return;
             const auto task(std::move(tasks.front()));
             tasks.pop();
             if (tasks.empty())
