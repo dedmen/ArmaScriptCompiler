@@ -9,6 +9,7 @@ public:
 
     static void compiledToBinaryCompressed(const CompiledCodeData& code, std::ostream& output);
     static CompiledCodeData binaryToCompiledCompressed(std::istream& input);
+    static CompiledCodeData binaryToCompiledCompressed(std::string_view input);
 
 
 
@@ -30,6 +31,6 @@ private:
     static std::vector<char> compressDataDictionary(const std::vector<char>& data, const std::vector<char>& dictionary);
 
 
-    static std::vector<char> decompressData(const std::vector<char>& data);
+    static std::vector<char> decompressData(std::string_view data);
     static std::vector<char> decompressDataDictionary(const std::vector<char>& data, const std::vector<char>& dictionary);
 };

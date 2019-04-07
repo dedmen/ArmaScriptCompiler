@@ -177,8 +177,17 @@ CompiledCodeData ScriptSerializer::binaryToCompiledCompressed(std::istream& inpu
 
     compressedVec.assign(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
 
-    auto decompressedData = decompressData(compressedVec);
+    auto decompressedData = decompressData({ compressedVec.data(), compressedVec.size() });
     compressedVec.clear();
+
+    vectorwrapbuf<char> databuf(decompressedData);
+    std::istream is(&databuf);
+
+    return binaryToCompiled(is);
+}
+
+CompiledCodeData ScriptSerializer::binaryToCompiledCompressed(std::string_view input) {
+    auto decompressedData = decompressData(input);
 
     vectorwrapbuf<char> databuf(decompressedData);
     std::istream is(&databuf);
@@ -380,7 +389,7 @@ std::vector<char> ScriptSerializer::compressDataDictionary(const std::vector<cha
     return outputBuffer;
 }
 
-std::vector<char> ScriptSerializer::decompressData(const std::vector<char>& data) {
+std::vector<char> ScriptSerializer::decompressData(std::string_view data) {
 
     const size_t rSize = ZSTD_findDecompressedSize(data.data(), data.size());
 
