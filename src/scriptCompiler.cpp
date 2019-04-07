@@ -89,6 +89,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
         temp.fileLoc.insert({ filename, index });
         return index;
     };
+    //#TODO get constant index and keep sets of bool/float/string constants
 
     auto nodeType = static_cast<sqf::parse::sqf::sqfasttypes::sqfasttypes>(node.kind);
     switch (nodeType) {
@@ -146,7 +147,20 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
         //push nular op
         auto name = node.content;
         std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-        instructions.emplace_back(ScriptInstruction{ InstructionType::callNular, node.offset, getFileIndex(node.file), node.line, name });
+        if (name == "true"sv) {
+            ScriptConstant newConst;
+            newConst = true;
+            auto index = output.constants.size();
+            output.constants.emplace_back(std::move(newConst));
+            instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
+        } else if (name == "false"sv) {
+            ScriptConstant newConst;
+            newConst = false;
+            auto index = output.constants.size();
+            output.constants.emplace_back(std::move(newConst));
+            instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
+        } else
+            instructions.emplace_back(ScriptInstruction{ InstructionType::callNular, node.offset, getFileIndex(node.file), node.line, name });
         break;
     }
     case sqf::parse::sqf::sqfasttypes::UNARYEXPRESSION: {
@@ -202,7 +216,6 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
         break;
     }
     case sqf::parse::sqf::sqfasttypes::CODE: {
-
         ScriptConstant newConst;
         std::vector<ScriptInstruction> instr;
         for (auto& it : node.children) {
@@ -210,12 +223,9 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
             ASTToInstructions(output, temp, instr, it);
         }
 
-        auto index = output.constants.size();
-        output.constants.emplace_back(node.content);
-
-        newConst = ScriptCodePiece{ instr,index };
+        newConst = ScriptCodePiece(std::move(instr), node.length-2, node.offset+1 );
         //#TODO duplicate detection
-        index = output.constants.size();
+        auto index = output.constants.size();
         output.constants.emplace_back(std::move(newConst));
 
         instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });

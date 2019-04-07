@@ -56,7 +56,22 @@ enum class ConstantType {
 
 struct ScriptCodePiece {
     std::vector<ScriptInstruction> code;
-    uint64_t contentString; //pointer to constants
+    union {
+        struct {
+            unsigned isOffset : 1;
+            unsigned length : 31;
+            unsigned offset : 32;
+        } contentSplit;
+        uint64_t contentString; //pointer to constants
+    };
+    ScriptCodePiece(std::vector<ScriptInstruction>&& c, uint32_t length, uint32_t offset) : code(c) {
+        contentSplit.isOffset = 1;
+        contentSplit.length = length;
+        contentSplit.offset = offset;
+    }
+    ScriptCodePiece(std::vector<ScriptInstruction>&& c, uint64_t content) : code(c), contentString(content) {}
+    ScriptCodePiece(): contentString(0) {}
+    
 };
 
 
