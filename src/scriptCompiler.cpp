@@ -10,6 +10,7 @@
 #include <commandmap.h>
 #include <iostream>
 #include <mutex>
+#include "stringdata.h"
 std::once_flag commandMapInitFlag;
 
 ScriptCompiler::ScriptCompiler(const std::vector<std::filesystem::path>& includePaths) {
@@ -188,11 +189,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
     }
     case sqf::parse::sqf::sqfasttypes::STRING: {
         ScriptConstant newConst;
-        newConst = node.content;
-        if (node.content.front() == '"' && node.content.back() == '"')
-            newConst = node.content.substr(1, node.content.length() - 2);
-        if (node.content.front() == '\'' && node.content.back() == '\'')
-            newConst = node.content.substr(1, node.content.length() - 2);
+        newConst = sqf::stringdata::parse_from_sqf(node.content);
         auto index = output.constants.size();
         output.constants.emplace_back(std::move(newConst));
 

@@ -36,7 +36,8 @@ void compileRecursive(std::filesystem::path inputDir) {
         if (i->path().filename().extension() == ".sqf"sv) {
             if (i->path().filename() == "fnc_zeusAttributes.sqf") continue; //Hard ignore for missing include file
             //if (i->path().filename() != "test.sqf") continue; //Hard ignore for missing include file
-            //if (i->path().filename().string().find("test_") != std::string::npos) continue; //Hard ignore unit tests
+            //if (i->path().string().find("event") == std::string::npos) continue; //Hard ignore unit tests
+            //if (i->path().filename().string().find("XEH_preStart") == std::string::npos) continue; //Hard ignore unit tests
             tasks.emplace(i->path());
         }
     }
@@ -48,22 +49,27 @@ void processFile(ScriptCompiler& comp, std::filesystem::path path) {
         std::cout << "compile " << outputPath.generic_string() << "\n";
 
         auto compiledData = comp.compileScript(path.generic_string());
-        std::stringstream output;
+        std::stringstream output(std::stringstream::binary|std::stringstream::out);
         ScriptSerializer::compiledToBinaryCompressed(compiledData, output);
 
         auto data = output.str();
         auto encoded = base64_encode(data);
 
-        std::ofstream outputFile(outputPath);
+        std::ofstream outputFile(outputPath, std::ofstream::binary);
 
         outputFile.write(encoded.data(), encoded.length());
 
         //ScriptSerializer::compiledToBinary(compiledData, output);
         outputFile.flush();
-        //auto outputPath2 = path.parent_path() / (path.stem().string() + ".sqfa");
-        //std::ofstream output2(outputPath2);
-        //ScriptSerializer::compiledToHumanReadable(compiledData, output2);
-        //output2.flush();
+        //std::istringstream data2(data, std::istringstream::binary);
+        //auto res = ScriptSerializer::binaryToCompiledCompressed(data2);
+
+
+
+        auto outputPath2 = path.parent_path() / (path.stem().string() + ".sqfa");
+        std::ofstream output2(outputPath2, std::ofstream::binary);
+        ScriptSerializer::compiledToHumanReadable(compiledData, output2);
+        output2.flush();
     } catch (std::domain_error& err) {
 
     }
