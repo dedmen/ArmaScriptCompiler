@@ -136,7 +136,6 @@ CompiledCodeData ScriptSerializer::binaryToCompiled(std::istream& input) {
                 }
             } break;
             case SerializedBlockType::code: {
-                auto instructions = binaryToInstructions(output, input);
                 output.codeIndex = readT<uint64_t>(input);
             } break;
         }
