@@ -62,7 +62,7 @@ void blaBla(const CompiledCodeData& code, const std::vector<ScriptInstruction>& 
 
 
 void ScriptSerializer::compiledToHumanReadable(const CompiledCodeData& code, std::ostream& output) {
-    blaBla(code, code.instructions, output);
+    blaBla(code, std::get<0>(code.constants[code.codeIndex]).code, output);
 }
 
 /*
@@ -108,7 +108,7 @@ void ScriptSerializer::compiledToBinary(const CompiledCodeData& code, std::ostre
         output.write(it.c_str(), it.size() + 1);
     output.flush();
     writeT(static_cast<uint8_t>(SerializedBlockType::code), output);
-    instructionsToBinary(code, code.instructions, output);
+    writeT(code.codeIndex, output);
     output.flush();
 }
 
@@ -137,7 +137,7 @@ CompiledCodeData ScriptSerializer::binaryToCompiled(std::istream& input) {
             } break;
             case SerializedBlockType::code: {
                 auto instructions = binaryToInstructions(output, input);
-                output.instructions = std::move(instructions);
+                output.codeIndex = readT<uint64_t>(input);
             } break;
         }
     }

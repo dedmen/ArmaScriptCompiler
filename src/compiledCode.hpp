@@ -75,7 +75,7 @@ constexpr ConstantType getConstantType(const ScriptConstant& c) {
 
 struct CompiledCodeData {
     uint32_t version{1};
-    std::vector<ScriptInstruction> instructions;
+    uint64_t codeIndex; //index to main code in constants
     std::vector<ScriptConstant> constants;
     std::vector<STRINGTYPE> fileNames;
 

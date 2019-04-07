@@ -63,7 +63,12 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path file) {
 
     CompiledCodeData stuff;
     CompileTempData temp;
-    ASTToInstructions(stuff, temp, stuff.instructions, ast);
+    ScriptCodePiece mainCode;
+    ASTToInstructions(stuff, temp, mainCode.code, ast);
+    mainCode.contentString = stuff.constants.size();
+    stuff.constants.emplace_back(std::move(preprocessedScript));
+    stuff.codeIndex = stuff.constants.size();
+    stuff.constants.emplace_back(std::move(mainCode));
 
     //std::shared_ptr<sqf::callstack> cs = std::make_shared<sqf::callstack>(vm->missionnamespace());
     //vm->parse_sqf(vm->stack(), preprocessedScript, cs, "I:\\ACE3\\addons\\advanced_ballistics\\functions\\fnc_readWeaponDataFromConfig.sqf");
