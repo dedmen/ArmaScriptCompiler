@@ -19,7 +19,7 @@ void blaBla(const CompiledCodeData& code, const std::vector<ScriptInstruction>& 
             switch (getConstantType(constant)) {
             case ConstantType::code:
                 output << "push CODE {\n";
-                blaBla(code, std::get<0>(constant), output);
+                blaBla(code, std::get<0>(constant).code, output);
                 output << "}\n";
                 break;
             case ConstantType::string:
@@ -145,7 +145,7 @@ CompiledCodeData ScriptSerializer::binaryToCompiled(std::istream& input) {
 }
 
 void ScriptSerializer::compiledToBinaryCompressed(const CompiledCodeData& code, std::ostream& output) {
-    std::stringstream uncompressedData(std::stringstream::binary | std::stringstream::out);
+    std::stringstream uncompressedData(std::stringstream::binary | std::stringstream::out | std::stringstream::in);
     compiledToBinary(code, uncompressedData);
 
     std::vector<char> uncompressedVec;
@@ -271,6 +271,7 @@ ScriptInstruction ScriptSerializer::binaryToInstruction(const CompiledCodeData& 
 }
 
 std::vector<ScriptInstruction> ScriptSerializer::binaryToInstructions(const CompiledCodeData& code, std::istream& input) {
+    auto pos = input.tellg();
     auto count = readT<uint32_t>(input);
     std::vector<ScriptInstruction> result;
     result.reserve(count);
@@ -282,15 +283,18 @@ std::vector<ScriptInstruction> ScriptSerializer::binaryToInstructions(const Comp
 void ScriptSerializer::writeConstants(const CompiledCodeData& code, std::ostream& output) {
     writeT(static_cast<uint8_t>(SerializedBlockType::constant), output);
     writeT(static_cast<uint16_t>(code.constants.size()), output);
-
+    int index = 0;
     for (auto& constant : code.constants) {
         auto type = getConstantType(constant);
         writeT(static_cast<uint8_t>(type), output);
 
+        index++;
+
         switch (type) {
         case ConstantType::code: {
-            auto& instructions = std::get<std::vector<ScriptInstruction>>(constant);
-            instructionsToBinary(code, instructions, output);
+            auto& instructions = std::get<ScriptCodePiece>(constant);
+            writeT<uint64_t>(instructions.contentString, output);
+            instructionsToBinary(code, instructions.code, output);
         } break;
         case ConstantType::string:
             output.write(std::get<STRINGTYPE>(constant).c_str(), std::get<STRINGTYPE>(constant).size() + 1);
@@ -316,8 +320,11 @@ void ScriptSerializer::readConstants(CompiledCodeData& code, std::istream& input
 
         switch (type) {
             case ConstantType::code: {
-                auto instructions = binaryToInstructions(code, input);
-                code.constants.emplace_back(std::move(instructions));
+                ScriptCodePiece piece;
+                piece.contentString = readT<uint64_t>(input);
+                piece.code = binaryToInstructions(code, input);
+
+                code.constants.emplace_back(std::move(piece));
             } break;
             case ConstantType::string: {
                 std::string content;

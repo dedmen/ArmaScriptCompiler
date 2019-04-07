@@ -205,9 +205,12 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
             ASTToInstructions(output, temp, instr, it);
         }
 
-        newConst = instr;
-        //#TODO duplicate detection
         auto index = output.constants.size();
+        output.constants.emplace_back(node.content);
+
+        newConst = ScriptCodePiece{ instr,index };
+        //#TODO duplicate detection
+        index = output.constants.size();
         output.constants.emplace_back(std::move(newConst));
 
         instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });

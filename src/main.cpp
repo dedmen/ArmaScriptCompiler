@@ -36,8 +36,8 @@ void compileRecursive(std::filesystem::path inputDir) {
         if (i->path().filename().extension() == ".sqf"sv) {
             if (i->path().filename() == "fnc_zeusAttributes.sqf") continue; //Hard ignore for missing include file
             //if (i->path().filename() != "test.sqf") continue; //Hard ignore for missing include file
-            //if (i->path().string().find("event") == std::string::npos) continue; //Hard ignore unit tests
-            //if (i->path().filename().string().find("XEH_preStart") == std::string::npos) continue; //Hard ignore unit tests
+            //if (i->path().string().find("3DEN") != std::string::npos) continue; //CBA trying to format a code piece
+            if (i->path().filename().string().find("initDisplay3DEN") == std::string::npos) continue; //Hard ignore unit tests
             tasks.emplace(i->path());
         }
     }
@@ -61,15 +61,15 @@ void processFile(ScriptCompiler& comp, std::filesystem::path path) {
 
         //ScriptSerializer::compiledToBinary(compiledData, output);
         outputFile.flush();
-        //std::istringstream data2(data, std::istringstream::binary);
+        std::istringstream data2(data, std::istringstream::binary);
         //auto res = ScriptSerializer::binaryToCompiledCompressed(data2);
 
 
 
         auto outputPath2 = path.parent_path() / (path.stem().string() + ".sqfa");
-        std::ofstream output2(outputPath2, std::ofstream::binary);
-        ScriptSerializer::compiledToHumanReadable(compiledData, output2);
-        output2.flush();
+        //std::ofstream output2(outputPath2, std::ofstream::binary);
+        //ScriptSerializer::compiledToHumanReadable(compiledData, output2);
+        //output2.flush();
     } catch (std::domain_error& err) {
 
     }
@@ -78,27 +78,29 @@ void processFile(ScriptCompiler& comp, std::filesystem::path path) {
 int main(int argc, char* argv[]) {
 
 
-    std::ifstream inputFile("I:/ACE3/addons/advanced_ballistics/functions/fnc_readWeaponDataFromConfig.sqf");
+    //std::ifstream inputFile("I:/ACE3/addons/advanced_ballistics/functions/fnc_readWeaponDataFromConfig.sqf");
 
     ScriptCompiler compiler({ 
+        static_cast<std::filesystem::path>("I:\\ACE3"),
         static_cast<std::filesystem::path>("I:\\CBA_A3"),
         static_cast<std::filesystem::path>("F:/Steam/SteamApps/common/Arma 3/Addons/ui_f"),
         static_cast<std::filesystem::path>("F:/Steam/SteamApps/common/Arma 3/Addons/functions_f"),
         static_cast<std::filesystem::path>("F:/Steam/SteamApps/common/Arma 3/Addons/editor_f")
     });
-    //compileRecursive("I:/ACE3/addons");
-    compileRecursive("I:/CBA_A3/addons");
-    //compileRecursive("I:/ACE3/addons/nightvision");
-    //compileRecursive("I:/ACE3/addons/aircraft");
 
-    auto workerFunc = []() {
+
+    std::mutex workWait;
+    workWait.lock();
+    auto workerFunc = [&]() {
         ScriptCompiler compiler({ 
+            static_cast<std::filesystem::path>("I:\\ACE3"),
             static_cast<std::filesystem::path>("I:\\CBA_A3"),
             static_cast<std::filesystem::path>("F:/Steam/SteamApps/common/Arma 3/Addons/ui_f"),
             static_cast<std::filesystem::path>("F:/Steam/SteamApps/common/Arma 3/Addons/functions_f"),
             static_cast<std::filesystem::path>("F:/Steam/SteamApps/common/Arma 3/Addons/editor_f")
         });
-
+        workWait.lock();
+        workWait.unlock();
 
         while (threadsShouldRun) {
             std::unique_lock<std::mutex> lock(taskMutex);
@@ -113,23 +115,33 @@ int main(int argc, char* argv[]) {
 
     };
 
-    //std::unique_ptr<std::thread> myThread = std::make_unique<std::thread>(workerFunc);
-    //std::unique_ptr<std::thread> myThread2 = std::make_unique<std::thread>(workerFunc);
-    //std::unique_ptr<std::thread> myThread3 = std::make_unique<std::thread>(workerFunc);
-    //std::unique_ptr<std::thread> myThread4 = std::make_unique<std::thread>(workerFunc);
-    //std::unique_ptr<std::thread> myThread5 = std::make_unique<std::thread>(workerFunc);
-    //std::unique_ptr<std::thread> myThread6 = std::make_unique<std::thread>(workerFunc);
-    //std::unique_ptr<std::thread> myThread7 = std::make_unique<std::thread>(workerFunc);
+    compileRecursive("I:/ACE3/addons");
+    compileRecursive("I:/CBA_A3/addons");
+    //compileRecursive("I:/CBA_A3/addons");
+    //compileRecursive("I:/ACE3/addons/nightvision");
+    //compileRecursive("I:/ACE3/addons/aircraft");
+    workWait.unlock();
+
+
+
+
+    std::unique_ptr<std::thread> myThread = std::make_unique<std::thread>(workerFunc);
+    std::unique_ptr<std::thread> myThread2 = std::make_unique<std::thread>(workerFunc);
+    std::unique_ptr<std::thread> myThread3 = std::make_unique<std::thread>(workerFunc);
+    std::unique_ptr<std::thread> myThread4 = std::make_unique<std::thread>(workerFunc);
+    std::unique_ptr<std::thread> myThread5 = std::make_unique<std::thread>(workerFunc);
+    std::unique_ptr<std::thread> myThread6 = std::make_unique<std::thread>(workerFunc);
+    std::unique_ptr<std::thread> myThread7 = std::make_unique<std::thread>(workerFunc);
 
     workerFunc();
 
-    //myThread->join();
-    //myThread2->join();
-    //myThread3->join();
-    //myThread4->join();
-    //myThread5->join();
-    //myThread6->join();
-    //myThread7->join();
+    myThread->join();
+    myThread2->join();
+    myThread3->join();
+    myThread4->join();
+    myThread5->join();
+    myThread6->join();
+    myThread7->join();
 
     /*
     auto compiledScript = compiler.compileScript("I:/ACE3/addons/advanced_ballistics/functions/fnc_readWeaponDataFromConfig.sqf");

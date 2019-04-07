@@ -54,7 +54,13 @@ enum class ConstantType {
     boolean
 };
 
-using ScriptConstant = std::variant<std::vector<ScriptInstruction>, STRINGTYPE, float, bool>;
+struct ScriptCodePiece {
+    std::vector<ScriptInstruction> code;
+    uint64_t contentString; //pointer to constants
+};
+
+
+using ScriptConstant = std::variant<ScriptCodePiece, STRINGTYPE, float, bool>;
 
 constexpr ConstantType getConstantType(const ScriptConstant& c) {
     switch (c.index()) {
