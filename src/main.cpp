@@ -49,7 +49,7 @@ void processFile(ScriptCompiler& comp, std::filesystem::path path) {
         std::cout << "compile " << outputPath.generic_string() << "\n";
 
         auto compiledData = comp.compileScript(path.generic_string());
-        std::stringstream output(std::stringstream::binary|std::stringstream::out);
+        std::stringstream output(std::stringstream::binary | std::stringstream::out);
         ScriptSerializer::compiledToBinaryCompressed(compiledData, output);
 
         auto data = output.str();

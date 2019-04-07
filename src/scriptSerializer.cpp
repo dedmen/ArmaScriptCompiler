@@ -145,7 +145,7 @@ CompiledCodeData ScriptSerializer::binaryToCompiled(std::istream& input) {
 }
 
 void ScriptSerializer::compiledToBinaryCompressed(const CompiledCodeData& code, std::ostream& output) {
-    std::stringstream uncompressedData;
+    std::stringstream uncompressedData(std::stringstream::binary | std::stringstream::out);
     compiledToBinary(code, uncompressedData);
 
     std::vector<char> uncompressedVec;
@@ -174,7 +174,6 @@ public:
 
 
 CompiledCodeData ScriptSerializer::binaryToCompiledCompressed(std::istream& input) {
-    
     std::vector<char> compressedVec;
 
     compressedVec.assign(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
