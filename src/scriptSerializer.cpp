@@ -6,8 +6,8 @@
 
 static constexpr const int compressionLevel = 22;
 
-void ScriptSerializer::compiledToHumanReadable(const CompiledCodeData& code, std::ostream& output) {
-    for (auto& it : code.instructions) {
+void blaBla(const CompiledCodeData& code, const std::vector<ScriptInstruction>& inst , std::ostream& output) {//#TODO move into proper func
+    for (auto& it : inst) {
         switch (it.type) {
         case InstructionType::endStatement:
             output << "endStatement\n";
@@ -18,7 +18,9 @@ void ScriptSerializer::compiledToHumanReadable(const CompiledCodeData& code, std
 
             switch (getConstantType(constant)) {
             case ConstantType::code:
-                output << "push CODE " << "DUMMY" << "\n";
+                output << "push CODE {\n";
+                blaBla(code, std::get<0>(constant), output);
+                output << "}\n";
                 break;
             case ConstantType::string:
                 output << "push STRING " << std::get<STRINGTYPE>(constant) << "\n";
@@ -56,6 +58,11 @@ void ScriptSerializer::compiledToHumanReadable(const CompiledCodeData& code, std
         default:;
         }
     }
+}
+
+
+void ScriptSerializer::compiledToHumanReadable(const CompiledCodeData& code, std::ostream& output) {
+    blaBla(code, code.instructions, output);
 }
 
 /*

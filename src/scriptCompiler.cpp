@@ -64,10 +64,10 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path file) {
     CompileTempData temp;
     ASTToInstructions(stuff, temp, stuff.instructions, ast);
 
-    //std::shared_ptr<sqf::callstack> cs = std::make_shared<sqf::callstack>(vm.missionnamespace());
-    //vm.parse_sqf(vm.stack(), preprocessedScript, cs, "I:\\ACE3\\addons\\advanced_ballistics\\functions\\fnc_readWeaponDataFromConfig.sqf");
+    //std::shared_ptr<sqf::callstack> cs = std::make_shared<sqf::callstack>(vm->missionnamespace());
+    //vm->parse_sqf(vm->stack(), preprocessedScript, cs, "I:\\ACE3\\addons\\advanced_ballistics\\functions\\fnc_readWeaponDataFromConfig.sqf");
     //std::ofstream out("P:\\out.sqfa");
-    //printSQFASM(stuff, out);
+    //printSQFASM(stuff, out); //see main.cpp if you wanna do that. ScriptSerializer can serialize to ASM
     return stuff;
 }
 
@@ -203,8 +203,10 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
         ScriptConstant newConst;
         std::vector<ScriptInstruction> instr;
-         for (auto& it : node.children)
+        for (auto& it : node.children) {
+            instr.emplace_back(ScriptInstruction{ InstructionType::endStatement, node.offset, 0, 0 });
             ASTToInstructions(output, temp, instr, it);
+        }
 
         newConst = instr;
         //#TODO duplicate detection
@@ -237,7 +239,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
                                               //        stuffAST(output, instructions, it);
     default:
         for (size_t i = 0; i < node.children.size(); i++) {
-            //if (i != 0) //end statement
+            if (i != 0 || instructions.empty()) //end statement
                 instructions.emplace_back(ScriptInstruction{ InstructionType::endStatement, node.offset, 0, 0 });
             ASTToInstructions(output, temp, instructions, node.children[i]);
         }
