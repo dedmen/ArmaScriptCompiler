@@ -6,6 +6,49 @@
 
 static constexpr const int compressionLevel = 22;
 
+void blaBla(const CompiledCodeData& code, const std::vector<ScriptInstruction>& inst, std::ostream& output);
+
+void blaBLaConstant(const CompiledCodeData& code, const ScriptConstant& constant, std::ostream& output, bool inArray = false) {
+    
+    switch (getConstantType(constant)) {
+    case ConstantType::code:
+        output << "push CODE {\n";
+        blaBla(code, std::get<0>(constant).code, output);
+        output << "}\n";
+        break;
+    case ConstantType::string:
+        if (!inArray)
+            output << "push STRING " << std::get<STRINGTYPE>(constant) << "\n";
+        else
+            output << std::get<STRINGTYPE>(constant) << ", ";
+        break;
+    case ConstantType::scalar:
+        if (!inArray)
+            output << "push SCALAR " << std::get<float>(constant) << "\n";
+        else
+            output << std::get<float>(constant) << ", ";
+        break;
+    case ConstantType::boolean:
+        if (!inArray)
+            output << "push BOOL " << std::get<bool>(constant) << "\n";
+        else
+            output << std::get<bool>(constant) << ", ";
+        break;
+    case ConstantType::array:
+        if (!inArray)
+            output << "push ARRAY [\n";
+        else
+            output << "[\n";
+        for (auto& it : std::get<4>(constant).content)
+            blaBLaConstant(code, it, output, true);
+        output << "]\n";
+        break;
+    default:;
+    }
+
+}
+
+
 void blaBla(const CompiledCodeData& code, const std::vector<ScriptInstruction>& inst , std::ostream& output) {//#TODO move into proper func
     for (auto& it : inst) {
         switch (it.type) {
@@ -15,24 +58,7 @@ void blaBla(const CompiledCodeData& code, const std::vector<ScriptInstruction>& 
         case InstructionType::push: {
             auto index = std::get<uint64_t>(it.content);
             auto constant = code.constants[index];
-
-            switch (getConstantType(constant)) {
-            case ConstantType::code:
-                output << "push CODE {\n";
-                blaBla(code, std::get<0>(constant).code, output);
-                output << "}\n";
-                break;
-            case ConstantType::string:
-                output << "push STRING " << std::get<STRINGTYPE>(constant) << "\n";
-                break;
-            case ConstantType::scalar:
-                output << "push SCALAR " << std::get<float>(constant) << "\n";
-                break;
-            case ConstantType::boolean:
-                output << "push BOOL " << std::get<bool>(constant) << "\n";
-                break;
-            default:;
-            }
+            blaBLaConstant(code, constant, output);
         } break;
         case InstructionType::callUnary:
             output << "callUnary " << std::get<STRINGTYPE>(it.content) << "\n";

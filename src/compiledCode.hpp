@@ -38,6 +38,23 @@ enum class InstructionType {
     makeArray
 };
 
+
+static std::string_view instructionTypeToString(InstructionType type) {
+    switch (type) {
+        case InstructionType::endStatement: return "endStatement"sv;
+        case InstructionType::push: return "push"sv;
+        case InstructionType::callUnary: return "callUnary"sv;
+        case InstructionType::callBinary: return "callBinary"sv;
+        case InstructionType::callNular: return "callNular"sv;
+        case InstructionType::assignTo: return "assignTo"sv;
+        case InstructionType::assignToLocal: return "assignToLocal"sv;
+        case InstructionType::getVariable: return "getVariable"sv;
+        case InstructionType::makeArray: return "makeArray"sv;
+        default: __debugbreak();
+    }
+}
+
+
 struct ScriptInstruction {
     InstructionType type;
     size_t offset;
@@ -51,7 +68,8 @@ enum class ConstantType {
     code,
     string,
     scalar,
-    boolean
+    boolean,
+    array
 };
 
 struct ScriptCodePiece {
@@ -70,12 +88,31 @@ struct ScriptCodePiece {
         contentSplit.offset = offset;
     }
     ScriptCodePiece(std::vector<ScriptInstruction>&& c, uint64_t content) : code(c), contentString(content) {}
+    //ScriptCodePiece(ScriptCodePiece&& o) noexcept : code(std::move(o.code)), contentString(o.contentString) {}
+    //ScriptCodePiece(const ScriptCodePiece& o) noexcept : code(o.code), contentString(o.contentString) {}
+    //
+    //ScriptCodePiece& operator=(ScriptCodePiece&& o) noexcept {
+    //    code = std::move(o.code);
+    //    contentString = o.contentString;
+    //    return *this;
+    //}
+    //ScriptCodePiece& operator=(const ScriptCodePiece& o) noexcept {
+    //    code = o.code;
+    //    contentString = o.contentString;
+    //    return *this;
+    //}
+
     ScriptCodePiece(): contentString(0) {}
-    
 };
 
+struct ScriptConstantArray;
 
-using ScriptConstant = std::variant<ScriptCodePiece, STRINGTYPE, float, bool>;
+using ScriptConstant = std::variant<ScriptCodePiece, STRINGTYPE, float, bool, ScriptConstantArray>;
+
+struct ScriptConstantArray {
+    std::vector<ScriptConstant> content;
+};
+
 
 constexpr ConstantType getConstantType(const ScriptConstant& c) {
     switch (c.index()) {
@@ -83,10 +120,10 @@ constexpr ConstantType getConstantType(const ScriptConstant& c) {
         case 1: return ConstantType::string;
         case 2: return ConstantType::scalar;
         case 3: return ConstantType::boolean;
+        case 4: return ConstantType::array;
     }
     __debugbreak();
 }
-
 
 struct CompiledCodeData {
     uint32_t version{1};
@@ -101,3 +138,27 @@ struct CompiledCodeData {
 
     //#TODO compress constants, don't have duplicates for a number or string
 };
+
+
+
+template<typename T>
+class Singleton {
+    Singleton(const Singleton&) = delete;
+    Singleton(Singleton&&) = delete;
+    Singleton& operator=(const Singleton&) = delete;
+    Singleton& operator=(Singleton&&) = delete;
+public:
+    static __forceinline T& get() noexcept {
+        return _singletonInstance;
+    }
+    static void release() {
+    }
+protected:
+    Singleton() noexcept {}
+    static T _singletonInstance;
+    static bool _initialized;
+};
+template<typename T>
+T Singleton<T>::_singletonInstance;
+template<typename T>
+bool Singleton<T>::_initialized = false;

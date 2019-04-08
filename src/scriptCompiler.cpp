@@ -11,6 +11,9 @@
 #include <iostream>
 #include <mutex>
 #include "stringdata.h"
+#include "optimizer/optimizerModuleBase.hpp"
+#include "optimizer/optimizer.h"
+#include "scriptSerializer.hpp"
 std::once_flag commandMapInitFlag;
 
 ScriptCompiler::ScriptCompiler(const std::vector<std::filesystem::path>& includePaths) {
@@ -64,21 +67,62 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path file) {
     CompiledCodeData stuff;
     CompileTempData temp;
     ScriptCodePiece mainCode;
+
+
+    {
+        auto node = OptimizerModuleBase::nodeFromAST(ast);
+
+        std::ofstream nodeo("P:\\node.txt");
+        node.dumpTree(nodeo, 0);
+        nodeo.close();
+
+        auto res = node.bottomUpFlatten();
+
+        Optimizer opt;
+
+        opt.optimize(node);
+
+        std::ofstream nodeop("P:\\nodeOpt.txt");
+        node.dumpTree(nodeop, 0);
+        nodeop.close();
+
+        CompiledCodeData stuff;
+        CompileTempData temp;
+        ScriptCodePiece mainCode;
+
+
+        ASTToInstructions(stuff, temp, mainCode.code, node);
+        mainCode.contentString = stuff.constants.size();
+        stuff.constants.emplace_back(std::move(preprocessedScript));
+        stuff.codeIndex = stuff.constants.size();
+        stuff.constants.emplace_back(std::move(mainCode));
+
+
+        std::ofstream output2("P:\\outOpt.sqfa", std::ofstream::binary);
+        ScriptSerializer::compiledToHumanReadable(stuff, output2);
+        output2.flush();
+    }
+
+   
+
+
+
     ASTToInstructions(stuff, temp, mainCode.code, ast);
     mainCode.contentString = stuff.constants.size();
     stuff.constants.emplace_back(std::move(preprocessedScript));
     stuff.codeIndex = stuff.constants.size();
     stuff.constants.emplace_back(std::move(mainCode));
 
-    //std::shared_ptr<sqf::callstack> cs = std::make_shared<sqf::callstack>(vm->missionnamespace());
-    //vm->parse_sqf(vm->stack(), preprocessedScript, cs, "I:\\ACE3\\addons\\advanced_ballistics\\functions\\fnc_readWeaponDataFromConfig.sqf");
-    //std::ofstream out("P:\\out.sqfa");
-    //printSQFASM(stuff, out); //see main.cpp if you wanna do that. ScriptSerializer can serialize to ASM
+
+    //auto outputPath2 = file.parent_path() / (file.stem().string() + ".sqfa");
+    //std::ofstream output2(outputPath2, std::ofstream::binary);
+    std::ofstream output2("P:\\outOrig.sqfa", std::ofstream::binary);
+    ScriptSerializer::compiledToHumanReadable(stuff, output2);
+    output2.flush();
     return stuff;
 }
 
 void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData& temp, std::vector<ScriptInstruction>& instructions, const astnode& node) const {
-
     auto getFileIndex = [&](const std::string& filename) -> uint8_t
     {
         auto found = temp.fileLoc.find(filename);
@@ -104,7 +148,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
             nodeType == sqf::parse::sqf::sqfasttypes::ASSIGNMENT ?
             InstructionType::assignTo
             :
-            InstructionType::assignToLocal//#TODO tolower
+            InstructionType::assignToLocal
             , node.offset, getFileIndex(node.file), node.line, varname });
     }
                                                         break;
@@ -258,6 +302,158 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
                 instructions.emplace_back(ScriptInstruction{ InstructionType::endStatement, node.offset, 0, 0 });
             ASTToInstructions(output, temp, instructions, node.children[i]);
         }
+    }
+}
+
+ScriptConstantArray ScriptCompiler::ASTParseArray(CompiledCodeData& output, CompileTempData& temp, const OptimizerModuleBase::Node& node) const {
+    ScriptConstantArray newConst;
+    for (auto& it : node.children) {
+        if (it.value.index() == 0) {//is code
+            ScriptCodePiece codeConst;
+            std::vector<ScriptInstruction> instr;
+            for (auto& codeIt : it.children) {
+
+                //std::stringstream dbg;
+                //codeIt.dumpTree(dbg, 0);
+                //auto res = dbg.str();
+
+                instr.emplace_back(ScriptInstruction{ InstructionType::endStatement, node.offset, 0, 0 });
+                ASTToInstructions(output, temp, instr, codeIt);
+            }
+            codeConst.contentString = std::get<ScriptCodePiece>(it.value).contentString;
+            codeConst.code = std::move(instr);
+            newConst.content.emplace_back(std::move(codeConst));
+        } else if (it.value.index() == 4) {//array
+            newConst.content.emplace_back(ASTParseArray(output, temp, it));
+        } else {
+            newConst.content.emplace_back(it.value);
+        }
+    }
+    return newConst;
+}
+
+void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData& temp,
+    std::vector<ScriptInstruction>& instructions, const OptimizerModuleBase::Node& node) const {
+
+    auto getFileIndex = [&](const std::string & filename) -> uint8_t
+    {
+        auto found = temp.fileLoc.find(filename);
+        if (found != temp.fileLoc.end())
+            return found->second;
+        auto index = static_cast<uint8_t>(output.fileNames.size());
+        output.fileNames.emplace_back(filename);
+        temp.fileLoc.insert({ filename, index });
+        return index;
+    };
+
+
+    switch (node.type) {
+        case InstructionType::push: {
+            switch (node.value.index()) {
+                case 0: {//Code
+                    ScriptConstant newConst;
+                    std::vector<ScriptInstruction> instr;
+                    for (auto& it : node.children) {
+                        instr.emplace_back(ScriptInstruction{ InstructionType::endStatement, node.offset, 0, 0 });
+                        ASTToInstructions(output, temp, instr, it);
+                    }
+
+                    newConst = node.value;
+                    std::get<ScriptCodePiece>(newConst).code = std::move(instr);
+                    //#TODO duplicate detection
+                    auto index = output.constants.size();
+                    output.constants.emplace_back(std::move(newConst));
+
+                    instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
+                } break;
+                case 1: {//String
+                    auto index = output.constants.size();
+                    output.constants.emplace_back(node.value);
+                    instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
+                } break;
+                case 2: {//Number
+                    auto index = output.constants.size();
+                    output.constants.emplace_back(node.value);
+                    instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
+                } break;
+                case 3: {//Bool
+                    auto index = output.constants.size();
+                    output.constants.emplace_back(node.value);
+                    instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
+                } break;
+                case 4: {//Array
+                    auto value = ASTParseArray(output, temp, node);
+                    auto index = output.constants.size();
+                    output.constants.emplace_back(value);
+
+                    instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
+                } break;
+            }
+
+        }break;
+        case InstructionType::callUnary: {
+            
+            ASTToInstructions(output, temp, instructions, node.children[0]);
+            //push unary op
+            auto name = std::get<STRINGTYPE>(node.value);
+            std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+            instructions.emplace_back(ScriptInstruction{ InstructionType::callUnary, node.offset, getFileIndex(node.file), node.line, name });
+
+        } break;
+        case InstructionType::callBinary: {
+
+
+            //get left arg on stack
+            ASTToInstructions(output, temp, instructions, node.children[0]);
+            //get right arg on stack
+            ASTToInstructions(output, temp, instructions, node.children[1]);
+            //push binary op
+            auto name = std::get<STRINGTYPE>(node.value);
+            std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+            instructions.emplace_back(ScriptInstruction{ InstructionType::callBinary, node.offset, getFileIndex(node.file), node.line, name });
+
+
+
+        } break;
+        case InstructionType::callNular: {
+            auto name = std::get<STRINGTYPE>(node.value);
+            std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+            instructions.emplace_back(ScriptInstruction{ InstructionType::callNular, node.offset, getFileIndex(node.file), node.line, name });
+
+        } break;
+        case InstructionType::assignTo:
+        case InstructionType::assignToLocal: {
+            
+            auto varname = std::get<STRINGTYPE>(node.value);
+            //need value on stack first
+            ASTToInstructions(output, temp, instructions, node.children[0]);
+            std::transform(varname.begin(), varname.end(), varname.begin(), ::tolower);
+            instructions.emplace_back(ScriptInstruction{ node.type, node.offset, getFileIndex(node.file), node.line, varname });
+
+        } break;
+        case InstructionType::getVariable: {
+            auto varname = std::get<STRINGTYPE>(node.value);
+            std::transform(varname.begin(), varname.end(), varname.begin(), ::tolower);
+            instructions.emplace_back(ScriptInstruction{ InstructionType::getVariable, node.offset, getFileIndex(node.file), node.line, varname });
+        } break;
+        case InstructionType::makeArray: {
+            for (auto& it : node.children)
+                ASTToInstructions(output, temp, instructions, it);
+
+            //#TODO can already check here if all arguments are const and push a const
+
+            instructions.emplace_back(ScriptInstruction{ InstructionType::makeArray, node.offset, getFileIndex(node.file), node.line, node.children.size() });
+        } break;
+
+
+        case InstructionType::endStatement: {
+            for (size_t i = 0; i < node.children.size(); i++) {
+                if (i != 0 || instructions.empty()) //end statement
+                    instructions.emplace_back(ScriptInstruction{ InstructionType::endStatement, node.offset, 0, 0 });
+                ASTToInstructions(output, temp, instructions, node.children[i]);
+            }
+
+        } break;
     }
 
 

@@ -49,6 +49,10 @@ endif()
 
 file(GLOB_RECURSE SOURCES_ASC "src/*.hpp" "src/*.cpp" "${LIBRARY_PATH_B64}/base64.cpp")
 SOURCE_GROUP("src" FILES ${SOURCES_ASC})
+
+file(GLOB_RECURSE SOURCES_ASC_OPT "src/optimizer/*.hpp" "src/optimizer/*.cpp")
+SOURCE_GROUP("src" FILES ${SOURCES_ASC_OPT})
+
 #zstd
 SET(ZSTD_BUILD_PROGRAMS OFF CACHE BOOL "no programs" FORCE)
 set(ZSTD_USE_STATIC_RUNTIME ON CACHE BOOL "yes" FORCE)
@@ -87,7 +91,7 @@ add_definitions(/DLOADFILE_CACHE) #SQF VM fileio.cpp cache
 
 
 
-add_executable("ArmaScriptCompiler" ${SOURCES_ASC} ${SOURCES_SQFVM})
+add_executable("ArmaScriptCompiler" ${SOURCES_ASC} ${SOURCES_SQFVM} ${SOURCES_ASC_OPT})
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INCLUDE_PATH_ZSTD} ${LIBRARY_PATH_B64}) # ${INCLUDE_PATH_ZSTD} ${INCLUDE_PATH_SQFVM}
 
@@ -121,6 +125,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 	target_link_options("ArmaScriptCompiler" PRIVATE "-m32" "-fPIC" "-static" "-static-libgcc" "-static-libstdc++"
 	"$<$<CONFIG:Release>:-Wl,--gc-sections>"
 	"$<$<CONFIG:Release>:-Wl,--strip-all>"
+	"-Wl,--stack,4194304" #STack size
 	) 
 	set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 
@@ -136,6 +141,7 @@ else()
 		"$<$<CONFIG:Release>:/Oi>"
 		"$<$<CONFIG:Release>:/Ot>"
 		"$<$<CONFIG:Release>:/GL>"
+		"/F4194304" #Stack size
 	)
 	
 	target_compile_options(
