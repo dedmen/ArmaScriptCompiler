@@ -36,8 +36,8 @@ void compileRecursive(std::filesystem::path inputDir) {
         if (i->path().filename().extension() == ".sqf"sv) {
             if (i->path().filename() == "fnc_zeusAttributes.sqf") continue; //Hard ignore for missing include file
             //if (i->path().filename() != "test.sqf") continue; //Hard ignore for missing include file
-            if (i->path().string().find("keybinding") == std::string::npos) continue; //CBA trying to format a code piece
-            if (i->path().filename().string().find("XEH_preStart") == std::string::npos) continue; //Hard ignore unit tests
+            //if (i->path().string().find("keybinding") == std::string::npos) continue; //CBA trying to format a code piece
+            //if (i->path().filename().string().find("XEH_preStart") == std::string::npos) continue; //Hard ignore unit tests
             tasks.emplace(i->path());
         }
     }

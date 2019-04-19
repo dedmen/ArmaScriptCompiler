@@ -1,6 +1,7 @@
 #include "optimizerModuleConstantFold.hpp"
 #include <algorithm>
 #include <sstream>
+#include <unordered_set>
 
 class OptimizerConstantFoldActionMap : public Singleton<OptimizerConstantFoldActionMap> {
 public:
@@ -46,25 +47,55 @@ private:
         //math
 
 
-        binaryActions["+"] = [](OptimizerModuleBase::Node & node) -> void {
-            float leftArg = std::get<float>(node.children[0].value);
-            float rightArg = std::get<float>(node.children[1].value);
+        //binaryActions["+"] = [](OptimizerModuleBase::Node & node) -> void {
+        //    if (node.children[0].value.index() == 1) { //string
+        //        auto leftArg = std::get<STRINGTYPE>(node.children[0].value);
+        //        auto rightArg = std::get<STRINGTYPE>(node.children[1].value);
+        //        node.value = leftArg + rightArg;
+        //    } else {//float
+        //        float leftArg = std::get<float>(node.children[0].value);
+        //        float rightArg = std::get<float>(node.children[1].value);
+        //        node.value = leftArg + rightArg;
+        //    }
+        //
+        //
+        //    
+        //    node.type = InstructionType::push;
+        //    node.children.clear();
+        //    node.constant = true;
+        //    
+        //};
 
-            node.type = InstructionType::push;
-            node.children.clear();
-            node.constant = true;
-            node.value = leftArg + rightArg;
-        };
-
-        binaryActions["-"] = [](OptimizerModuleBase::Node & node) -> void {
-            float leftArg = std::get<float>(node.children[0].value);
-            float rightArg = std::get<float>(node.children[1].value);
-
-            node.type = InstructionType::push;
-            node.children.clear();
-            node.constant = true;
-            node.value = leftArg - rightArg;
-        };
+        //binaryActions["-"] = [](OptimizerModuleBase::Node & node) -> void {
+        //    if (node.children[0].value.index() == 4) { //array
+        //        //std::unordered_set<STRINGTYPE> vals;
+        //        //
+        //        //for (auto& i : node.children[1].children) { //#TODO number support
+        //        //    if (i.value.index() != 1)
+        //        //        return; //not string, don't optimize
+        //        //    vals.emplace(std::get<STRINGTYPE>(i.value));
+        //        //}
+        //        //std::vector<OptimizerModuleBase::Node> newNodes;
+        //        //for (auto& it : node.children[0].children) {
+        //        //    if (it.value.index() != 1)
+        //        //        return; //not string, don't optimize
+        //        //    auto & sval = std::get<STRINGTYPE>(it.value);
+        //        //
+        //        //    auto found = vals.find(sval);
+        //        //    if (found == vals.end())
+        //        //        newNodes.emplace_back(std::move(it));
+        //        //}
+        //        //node.children[0].children = std::move(newNodes);
+        //        return;
+        //    } else {//float
+        //        float leftArg = std::get<float>(node.children[0].value);
+        //        float rightArg = std::get<float>(node.children[1].value);
+        //        node.value = leftArg - rightArg;
+        //    }
+        //    node.type = InstructionType::push;
+        //    node.children.clear();
+        //    node.constant = true;
+        //};
 
         binaryActions["/"] = [](OptimizerModuleBase::Node & node) -> void {
             float leftArg = std::get<float>(node.children[0].value);
@@ -118,19 +149,26 @@ private:
     }
 
     void setupNulary() {
-        nularyActions["true"] = [](OptimizerModuleBase::Node & node) -> void {
-            node.type = InstructionType::push;
-            node.children.clear();
-            node.constant = true;
-            node.value = true;
-        };
+        //nularyActions["true"] = [](OptimizerModuleBase::Node & node) -> void {
+        //    node.type = InstructionType::push;
+        //    node.children.clear();
+        //    node.constant = true;
+        //    node.value = true;
+        //};
+        //
+        //nularyActions["false"] = [](OptimizerModuleBase::Node & node) -> void {
+        //    node.type = InstructionType::push;
+        //    node.children.clear();
+        //    node.constant = true;
+        //    node.value = false;
+        //};
 
-        nularyActions["false"] = [](OptimizerModuleBase::Node & node) -> void {
-            node.type = InstructionType::push;
-            node.children.clear();
-            node.constant = true;
-            node.value = false;
-        };
+        //nularyActions["nil"] = [](OptimizerModuleBase::Node & node) -> void {
+        //    node.type = InstructionType::push;
+        //    node.children.clear();
+        //    node.constant = true;
+        //    node.value = false;//#TODO
+        //};
     }
 
     std::unordered_map<std::string, std::function<void(OptimizerModuleBase::Node&)>> binaryActions;
@@ -181,6 +219,7 @@ void OptimizerModuleConstantFold::processNode(Node& node) {
         case InstructionType::assignToLocal: break;
         case InstructionType::getVariable: break;
         case InstructionType::makeArray: {
+            return;
             if (node.areChildrenConstant()) {//#TODO when converting to ASM check again if all elements are push
                 bool allPush = std::all_of(node.children.begin(), node.children.end(), [](const Node & it)
                     {

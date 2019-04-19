@@ -72,9 +72,9 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path file) {
     {
         auto node = OptimizerModuleBase::nodeFromAST(ast);
 
-        std::ofstream nodeo("P:\\node.txt");
-        node.dumpTree(nodeo, 0);
-        nodeo.close();
+        //std::ofstream nodeo("P:\\node.txt");
+        //node.dumpTree(nodeo, 0);
+        //nodeo.close();
 
         auto res = node.bottomUpFlatten();
 
@@ -82,9 +82,9 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path file) {
 
         opt.optimize(node);
 
-        std::ofstream nodeop("P:\\nodeOpt.txt");
-        node.dumpTree(nodeop, 0);
-        nodeop.close();
+        //std::ofstream nodeop("P:\\nodeOpt.txt");
+        //node.dumpTree(nodeop, 0);
+        //nodeop.close();
 
         CompiledCodeData stuff;
         CompileTempData temp;
@@ -98,9 +98,9 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path file) {
         stuff.constants.emplace_back(std::move(mainCode));
 
 
-        std::ofstream output2("P:\\outOpt.sqfa", std::ofstream::binary);
-        ScriptSerializer::compiledToHumanReadable(stuff, output2);
-        output2.flush();
+        //std::ofstream output2("P:\\outOpt.sqfa", std::ofstream::binary);
+        //ScriptSerializer::compiledToHumanReadable(stuff, output2);
+        //output2.flush();
     }
 
    
