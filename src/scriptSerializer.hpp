@@ -22,6 +22,9 @@ private:
     static ScriptInstruction binaryToInstruction(const CompiledCodeData& code, std::istream& input);
     static std::vector<ScriptInstruction> binaryToInstructions(const CompiledCodeData& code, std::istream& input);;
 
+    static void writeConstant(const CompiledCodeData& code, const ScriptConstant& constant, std::ostream& output);
+    static ScriptConstant readConstant(CompiledCodeData& code, std::istream& input);
+
     static void writeConstants(const CompiledCodeData& code, std::ostream& output);
     static void readConstants(CompiledCodeData& code, std::istream& input);
 

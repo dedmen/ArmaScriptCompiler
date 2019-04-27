@@ -69,49 +69,46 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path file) {
     ScriptCodePiece mainCode;
 
 
-    {
+    if (true) {
         auto node = OptimizerModuleBase::nodeFromAST(ast);
-
+    
         //std::ofstream nodeo("P:\\node.txt");
         //node.dumpTree(nodeo, 0);
         //nodeo.close();
-
+    
         auto res = node.bottomUpFlatten();
-
+    
         Optimizer opt;
-
+    
         opt.optimize(node);
-
+    
         //std::ofstream nodeop("P:\\nodeOpt.txt");
         //node.dumpTree(nodeop, 0);
         //nodeop.close();
-
-        CompiledCodeData stuff;
-        CompileTempData temp;
-        ScriptCodePiece mainCode;
-
-
+    
         ASTToInstructions(stuff, temp, mainCode.code, node);
         mainCode.contentString = stuff.constants.size();
         stuff.constants.emplace_back(std::move(preprocessedScript));
         stuff.codeIndex = stuff.constants.size();
         stuff.constants.emplace_back(std::move(mainCode));
-
-
+        if (stuff.codeIndex == 220) __debugbreak();
+    
         //std::ofstream output2("P:\\outOpt.sqfa", std::ofstream::binary);
         //ScriptSerializer::compiledToHumanReadable(stuff, output2);
         //output2.flush();
+    } else {
+        ASTToInstructions(stuff, temp, mainCode.code, ast);
+        mainCode.contentString = stuff.constants.size();
+        stuff.constants.emplace_back(std::move(preprocessedScript));
+        stuff.codeIndex = stuff.constants.size();
+        stuff.constants.emplace_back(std::move(mainCode));
     }
 
    
 
 
 
-    ASTToInstructions(stuff, temp, mainCode.code, ast);
-    mainCode.contentString = stuff.constants.size();
-    stuff.constants.emplace_back(std::move(preprocessedScript));
-    stuff.codeIndex = stuff.constants.size();
-    stuff.constants.emplace_back(std::move(mainCode));
+   
 
 
     //auto outputPath2 = file.parent_path() / (file.stem().string() + ".sqfa");

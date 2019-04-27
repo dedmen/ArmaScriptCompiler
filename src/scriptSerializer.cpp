@@ -314,32 +314,87 @@ std::vector<ScriptInstruction> ScriptSerializer::binaryToInstructions(const Comp
     return result;
 }
 
+void ScriptSerializer::writeConstant(const CompiledCodeData& code, const ScriptConstant& constant, std::ostream& output) {
+    auto type = getConstantType(constant);
+    writeT(static_cast<uint8_t>(type), output);
+
+    switch (type) {
+    case ConstantType::code: {
+        auto& instructions = std::get<ScriptCodePiece>(constant);
+        writeT<uint64_t>(instructions.contentString, output);
+        instructionsToBinary(code, instructions.code, output);
+    } break;
+    case ConstantType::string:
+        output.write(std::get<STRINGTYPE>(constant).c_str(), std::get<STRINGTYPE>(constant).size() + 1);
+        break;
+    case ConstantType::scalar:
+        writeT(std::get<float>(constant), output);
+        break;
+    case ConstantType::boolean:
+        writeT(std::get<bool>(constant), output);
+        break;
+    case ConstantType::array: {
+        auto& array = std::get<ScriptConstantArray>(constant);
+        writeT<uint32_t>(array.content.size(), output);
+
+        for (auto& cnst : array.content)
+            writeConstant(code, cnst, output);
+    } break;
+    default: __debugbreak();
+    }
+}
+
+ScriptConstant ScriptSerializer::readConstant(CompiledCodeData& code, std::istream& input) {
+    
+    auto typeRaw = readT<uint8_t>(input);
+
+    auto type = static_cast<ConstantType>(typeRaw);
+
+    switch (type) {
+    case ConstantType::code: {
+            ScriptCodePiece piece;
+            piece.contentString = readT<uint64_t>(input);
+            piece.code = binaryToInstructions(code, input);
+
+           return piece;
+        } break;
+        case ConstantType::string: {
+            std::string content;
+            std::getline(input, content, '\0');
+#ifndef ASC_INTERCEPT
+            return content;
+#else
+            return static_cast<STRINGTYPE>(content);
+#endif
+        } break;
+        case ConstantType::scalar: {
+            auto data = readT<float>(input);
+            return data;
+        } break;
+        case ConstantType::boolean: {
+            auto data = readT<bool>(input);
+            return data;
+        } break;
+        case ConstantType::array: {
+            auto size = readT<uint32_t>(input);
+            ScriptConstantArray arr;
+            arr.content.reserve(size);
+            for (int i = 0; i < size; ++i) {
+                arr.content.emplace_back(readConstant(code, input));
+            }
+            return arr;
+        } break;
+        default: __debugbreak();
+    }
+
+}
+
 void ScriptSerializer::writeConstants(const CompiledCodeData& code, std::ostream& output) {
     writeT(static_cast<uint8_t>(SerializedBlockType::constant), output);
     writeT(static_cast<uint16_t>(code.constants.size()), output);
     int index = 0;
     for (auto& constant : code.constants) {
-        auto type = getConstantType(constant);
-        writeT(static_cast<uint8_t>(type), output);
-
-        index++;
-
-        switch (type) {
-        case ConstantType::code: {
-            auto& instructions = std::get<ScriptCodePiece>(constant);
-            writeT<uint64_t>(instructions.contentString, output);
-            instructionsToBinary(code, instructions.code, output);
-        } break;
-        case ConstantType::string:
-            output.write(std::get<STRINGTYPE>(constant).c_str(), std::get<STRINGTYPE>(constant).size() + 1);
-            break;
-        case ConstantType::scalar:
-            writeT(std::get<float>(constant), output);
-            break;
-        case ConstantType::boolean:
-            writeT(std::get<bool>(constant), output);
-            break;
-        }
+        writeConstant(code, constant, output);
     }
 }
 
@@ -348,36 +403,7 @@ void ScriptSerializer::readConstants(CompiledCodeData& code, std::istream& input
 
     code.constants.reserve(constantCount);
     for (int i = 0; i < constantCount; ++i) {
-        auto typeRaw = readT<uint8_t>(input);
-
-        auto type = static_cast<ConstantType>(typeRaw);
-
-        switch (type) {
-            case ConstantType::code: {
-                ScriptCodePiece piece;
-                piece.contentString = readT<uint64_t>(input);
-                piece.code = binaryToInstructions(code, input);
-
-                code.constants.emplace_back(std::move(piece));
-            } break;
-            case ConstantType::string: {
-                std::string content;
-                std::getline(input, content, '\0');
-#ifndef ASC_INTERCEPT
-                code.constants.emplace_back(std::move(content));
-#else
-                code.constants.emplace_back(static_cast<STRINGTYPE>(content));
-#endif
-            } break;
-            case ConstantType::scalar: {
-                auto data = readT<float>(input);
-                code.constants.emplace_back(data);
-            } break;
-            case ConstantType::boolean: {
-                auto data = readT<bool>(input);
-                code.constants.emplace_back(data);
-            } break;
-        }
+        code.constants.emplace_back(readConstant(code, input));
     }
 
 }

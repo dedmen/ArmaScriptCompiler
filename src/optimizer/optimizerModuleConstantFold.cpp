@@ -97,15 +97,15 @@ private:
         //    node.constant = true;
         //};
 
-        binaryActions["/"] = [](OptimizerModuleBase::Node & node) -> void {
-            float leftArg = std::get<float>(node.children[0].value);
-            float rightArg = std::get<float>(node.children[1].value);
-
-            node.type = InstructionType::push;
-            node.children.clear();
-            node.constant = true;
-            node.value = leftArg / rightArg;
-        };
+        //binaryActions["/"] = [](OptimizerModuleBase::Node & node) -> void { //#TODO could be config with two strings?
+        //    float leftArg = std::get<float>(node.children[0].value);
+        //    float rightArg = std::get<float>(node.children[1].value);
+        //
+        //    node.type = InstructionType::push;
+        //    node.children.clear();
+        //    node.constant = true;
+        //    node.value = leftArg / rightArg;
+        //};
         binaryActions["*"] = [](OptimizerModuleBase::Node & node) -> void {
             float leftArg = std::get<float>(node.children[0].value);
             float rightArg = std::get<float>(node.children[1].value);
