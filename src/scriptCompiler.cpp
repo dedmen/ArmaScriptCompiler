@@ -91,7 +91,6 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path file) {
         stuff.constants.emplace_back(std::move(preprocessedScript));
         stuff.codeIndex = stuff.constants.size();
         stuff.constants.emplace_back(std::move(mainCode));
-        if (stuff.codeIndex == 220) __debugbreak();
     
         //std::ofstream output2("P:\\outOpt.sqfa", std::ofstream::binary);
         //ScriptSerializer::compiledToHumanReadable(stuff, output2);
