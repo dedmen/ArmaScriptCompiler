@@ -2418,4 +2418,5 @@ void CommandList::init() {
     cm.add(binary(4, "ctrlsetfontheighth4", type::ANY, type::ANY, {}, {}));
     cm.add(binary(4, "menusort", type::ANY, type::ANY, {}, {}));
     cm.add(binary(4, "ctrlsetfontheighth5", type::ANY, type::ANY, {}, {}));
+    cm.add(binary(4, "boundingboxreal", type::ANY, type::ANY, {}, {}));
 }
