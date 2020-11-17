@@ -32,10 +32,14 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path file) {
     std::ifstream inputFile(file);
     
     auto filesize = std::filesystem::file_size(file);
+    if (filesize == 0) // uh. oki
+        return CompiledCodeData();
+
     std::string scriptCode;
     scriptCode.resize(filesize);
     inputFile.read(scriptCode.data(), filesize);
     bool errflag = false;
+
 
     if (
         static_cast<unsigned char>(scriptCode[0]) == 0xef &&
@@ -45,10 +49,10 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path file) {
         scriptCode.erase(0, 3);
     }
 
-
-    if (scriptCode.find("script_component.hpp\"") == std::string::npos) {
-        throw std::domain_error("no include");
-    }
+    // #OPTION force all script files to contain a include
+    //if (scriptCode.find("script_component.hpp\"") == std::string::npos) {
+    //    throw std::domain_error("no include");
+    //}
 
 
     auto preprocessedScript = sqf::parse::preprocessor::parse(vm.get(), scriptCode, errflag, file.string());
@@ -457,6 +461,32 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
 void ScriptCompiler::initIncludePaths(const std::vector<std::filesystem::path>& paths) const {
     for (auto& includefolder : paths) {
-        vm->get_filesystem().add_mapping_auto(includefolder.string());
+
+        if (includefolder.string().length() == 3 && includefolder.string().substr(1) == ":/") {
+            // pdrive
+
+            const std::filesystem::path ignoreGit(".git");
+            const std::filesystem::path ignoreSvn(".svn");
+
+            //recursively search for pboprefix
+            for (auto i = std::filesystem::directory_iterator(includefolder);
+                i != std::filesystem::directory_iterator();
+                ++i)
+            {
+                if (!i->is_directory()) continue;
+
+                if ((i->path().filename() == ignoreGit || i->path().filename() == ignoreSvn))
+                {
+                    continue;
+                }
+                
+
+                vm->get_filesystem().add_mapping(i->path().filename().string(), i->path().string());
+            }
+        } else {
+            vm->get_filesystem().add_mapping_auto(includefolder.string());
+        }
+
+       
     }
 }
