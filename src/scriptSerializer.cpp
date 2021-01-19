@@ -48,7 +48,6 @@ void blaBLaConstant(const CompiledCodeData& code, const ScriptConstant& constant
 
 }
 
-
 void blaBla(const CompiledCodeData& code, const std::vector<ScriptInstruction>& inst , std::ostream& output) {//#TODO move into proper func
     for (auto& it : inst) {
         switch (it.type) {
@@ -118,20 +117,19 @@ void writeT(Type data, std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&data), sizeof(Type));
 }
 
-
-
-
 void ScriptSerializer::compiledToBinary(const CompiledCodeData& code, std::ostream& output) {
     writeT<uint32_t>(code.version, output); //version
     output.flush();
     writeConstants(code, output);
     output.flush();
 
+    auto pos = output.tellp();
+
     writeT(static_cast<uint8_t>(SerializedBlockType::locationInfo), output);
     output.flush();
     writeT(static_cast<uint16_t>(code.fileNames.size()), output);
     for (auto& it : code.fileNames)
-        output.write(it.c_str(), it.size() + 1);
+        writeString(output, it);
     output.flush();
     writeT(static_cast<uint8_t>(SerializedBlockType::code), output);
     writeT(code.codeIndex, output);
@@ -156,9 +154,7 @@ CompiledCodeData ScriptSerializer::binaryToCompiled(std::istream& input) {
                 auto locCount = readT<uint16_t>(input);
 
                 for (uint16_t i = 0; i < locCount; ++i) {
-                    std::string content;
-                    std::getline(input, content, '\0');
-                    output.fileNames.emplace_back(std::move(content));
+                    output.fileNames.emplace_back(readString(input));
                 }
             } break;
             case SerializedBlockType::code: {
@@ -245,7 +241,7 @@ void ScriptSerializer::instructionToBinary(const CompiledCodeData& code, const S
         case InstructionType::assignTo:
         case InstructionType::assignToLocal:
         case InstructionType::getVariable:
-            output.write(std::get<STRINGTYPE>(instruction.content).c_str(), std::get<STRINGTYPE>(instruction.content).size() + 1);
+            writeString(output, std::get<STRINGTYPE>(instruction.content));
             break;
         case InstructionType::makeArray:
             writeT(static_cast<uint32_t>(std::get<uint64_t>(instruction.content)), output);
@@ -291,10 +287,7 @@ ScriptInstruction ScriptSerializer::binaryToInstruction(const CompiledCodeData& 
         case InstructionType::assignTo:
         case InstructionType::assignToLocal:
         case InstructionType::getVariable: {
-            std::string content;
-            std::getline(input, content, '\0');
-
-            return ScriptInstruction{ type, offset, fileIndex, fileLine, static_cast<STRINGTYPE>(content) };
+            return ScriptInstruction{ type, offset, fileIndex, fileLine, readString(input) };
         }
         case InstructionType::makeArray: {
             auto arraySize = readT<uint32_t>(input);
@@ -325,7 +318,7 @@ void ScriptSerializer::writeConstant(const CompiledCodeData& code, const ScriptC
         instructionsToBinary(code, instructions.code, output);
     } break;
     case ConstantType::string:
-        output.write(std::get<STRINGTYPE>(constant).c_str(), std::get<STRINGTYPE>(constant).size() + 1);
+        writeString(output, std::get<STRINGTYPE>(constant));
         break;
     case ConstantType::scalar:
         writeT(std::get<float>(constant), output);
@@ -359,13 +352,7 @@ ScriptConstant ScriptSerializer::readConstant(CompiledCodeData& code, std::istre
            return piece;
         } break;
         case ConstantType::string: {
-            std::string content;
-            std::getline(input, content, '\0');
-#ifndef ASC_INTERCEPT
-            return content;
-#else
-            return static_cast<STRINGTYPE>(content);
-#endif
+            return readString(input);
         } break;
         case ConstantType::scalar: {
             auto data = readT<float>(input);
@@ -486,4 +473,40 @@ std::vector<char> ScriptSerializer::decompressDataDictionary(const std::vector<c
     ZSTD_freeDDict(ddict); //#TODO keep dict
 
     return outputBuffer;
+}
+
+STRINGTYPE ScriptSerializer::readString(std::istream& input) {
+    uint32_t length;
+    input.read(reinterpret_cast<char*>(&length) + 1, 3);
+
+
+    if constexpr (std::is_same_v<STRINGTYPE, std::string>) {
+        STRINGTYPE result;
+        result.resize(length);
+
+        input.read(result.data(), length);
+
+        return result;
+    } else { // RString
+        STRINGTYPE result;
+        result.resize(length);
+
+        input.read(result.data(), length);
+
+        return result;
+    }
+    
+
+}
+
+void ScriptSerializer::writeString(std::ostream& output, std::string_view string) {
+    uint32_t length = string.length();
+    // special stuff to write a 24bit number
+    //Assert(length & 0x00FFFFFF == length); // check that 24bit is not truncating
+
+    if ((length & 0x00FFFFFF) != length)
+        __debugbreak();
+
+    output.write(reinterpret_cast<char*>(&length), 3);
+    output.write(string.data(), length);
 }

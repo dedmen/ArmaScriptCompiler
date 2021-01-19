@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ufwb version="1.17">
+    <grammar name="SQFC" start="id:5" author="dedmen" fileextension=".sqfc">
+        <scripts>
+            <script name="test" type="DataType" id="12">
+                <source language="Lua">
+function parseByteRange(element, byteView, bitPos, bitLength, results)
+	-- this method parses data
+	print &quot;parseByteRange&quot;
+
+	-- return number of processed bytes
+	return 0
+end
+
+function fillByteRange(value, byteArray, bitPos, bitLength)
+	-- this method translates edited values back to the file
+	print &quot;fillByteRange&quot;
+end
+</source>
+            </script>
+        </scripts>
+        <structure name="&lt;File&gt;" id="5" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <number name="version" id="6" type="integer" length="4"/>
+            <structure name="TopLevelBlocks" id="7" repeatmax="64">
+                <structref name="&lt;TopLevelConstant&gt;" id="9" repeatmin="0" structure="id:8"/>
+                <structref name="&lt;TopLevelLocationInfo&gt;" id="87" repeatmin="0" structure="id:79"/>
+                <structref name="&lt;TopLevelCode&gt;" id="92" repeatmin="0" structure="id:88"/>
+            </structure>
+        </structure>
+        <structure name="TopLevelConstant" id="8" length="0" alignment="0" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <number name="Type" mustmatch="yes" id="12" type="integer" length="1">
+                <fixedvalues>
+                    <fixedvalue name="Constant" value="0"/>
+                </fixedvalues>
+            </number>
+            <number name="TLConstantCount" id="13" type="integer" length="2" minval="1" maxval="128"/>
+            <structure name="ConstantElements" id="14" repeat="id:13" repeatmin="TLConstantCount" repeatmax="TLConstantCount">
+                <structref name="&lt;ConstantElement&gt;" id="16" structure="id:15"/>
+            </structure>
+        </structure>
+        <structure name="ConstantElement" id="15" repeat="id:13" encoding="ISO_8859-1:1987" endian="little" signed="no" order="variable">
+            <structure name="ConstantCode" id="19" repeatmin="0">
+                <number name="Type" mustmatch="yes" id="20" type="integer" length="1">
+                    <fixedvalues>
+                        <fixedvalue name="Code" value="0"/>
+                    </fixedvalues>
+                </number>
+                <number name="codeStringRef" id="21" type="integer" length="8"/>
+                <structref name="&lt;CodeInstructions&gt;" id="23" structure="id:22"/>
+            </structure>
+            <structure name="ConstantString" id="25" repeatmin="0">
+                <number name="Type" mustmatch="yes" id="26" type="integer" length="1">
+                    <fixedvalues>
+                        <fixedvalue name="String" value="1"/>
+                    </fixedvalues>
+                </number>
+                <structref name="&lt;String&gt;" id="28" structure="id:27"/>
+            </structure>
+            <structure name="ConstantScalar" id="30" repeatmin="0">
+                <number name="Type" mustmatch="yes" id="31" type="integer" length="1">
+                    <fixedvalues>
+                        <fixedvalue name="Scalar" value="2"/>
+                    </fixedvalues>
+                </number>
+                <number name="ScalarValue" id="32" type="float" length="32" lengthunit="bit"/>
+            </structure>
+            <structure name="ConstantBool" id="34" repeatmin="0">
+                <number name="Type" mustmatch="yes" id="35" type="integer" length="1">
+                    <fixedvalues>
+                        <fixedvalue name="Bool" value="3"/>
+                    </fixedvalues>
+                </number>
+                <number name="BoolValue" id="36" type="integer" length="1"/>
+            </structure>
+            <structure name="ConstantArray" id="38" repeatmin="0">
+                <number name="Type" mustmatch="yes" id="39" type="integer" length="1">
+                    <fixedvalues>
+                        <fixedvalue name="Array" value="4"/>
+                    </fixedvalues>
+                </number>
+                <number name="cArrCount" id="40" type="integer" length="4" maxval="0"/>
+                <structure name="ConstantElements" id="41" repeat="id:40">
+                    <structref name="&lt;ConstantElement&gt;" id="42" structure="id:15"/>
+                </structure>
+            </structure>
+        </structure>
+        <structure name="CodeInstructions" id="22" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <number name="instructionCount" id="46" type="integer" length="4"/>
+            <structure name="InstructionElement" id="47" repeat="id:46" repeatmin="instructionCount" repeatmax="instructionCount" order="variable">
+                <structure name="InstructionEndStatement" id="48" repeatmin="0">
+                    <number name="Type" mustmatch="yes" id="49" type="integer" length="1">
+                        <fixedvalues>
+                            <fixedvalue name="endStatement" value="0"/>
+                        </fixedvalues>
+                    </number>
+                </structure>
+                <structure name="InstructionPush" id="51" repeatmin="0">
+                    <number name="Type" mustmatch="yes" id="52" type="integer" length="1">
+                        <fixedvalues>
+                            <fixedvalue name="Push" value="1"/>
+                        </fixedvalues>
+                    </number>
+                    <number name="constantIndex" id="53" type="integer" length="8"/>
+                </structure>
+                <structure name="InstructionCallCommand" id="55" repeatmin="0">
+                    <number name="Type" mustmatch="yes" id="56" type="integer" length="1">
+                        <fixedvalues>
+                            <fixedvalue name="callUnary" value="2"/>
+                            <fixedvalue name="callBinary" value="3"/>
+                            <fixedvalue name="callNular" value="4"/>
+                            <fixedvalue name="assignTo" value="5"/>
+                            <fixedvalue name="assignToLocal" value="6"/>
+                            <fixedvalue name="getVariable" value="7"/>
+                        </fixedvalues>
+                    </number>
+                    <number name="offset" id="57" type="integer" length="4" minval="0" maxval="0"/>
+                    <number name="fileIndex" id="58" type="integer" length="1"/>
+                    <number name="fileLine" id="59" type="integer" length="2" minval="0"/>
+                    <structref name="content" id="60" structure="id:27"/>
+                </structure>
+                <structure name="InstructionMakeArray" id="62">
+                    <number name="Type" mustmatch="yes" id="63" type="integer" length="1">
+                        <fixedvalues>
+                            <fixedvalue name="makeArray" value="8"/>
+                        </fixedvalues>
+                    </number>
+                    <number name="offset" id="64" type="integer" length="4"/>
+                    <number name="fileIndex" id="65" type="integer" length="1"/>
+                    <number name="fileLIne" id="66" type="integer" length="2"/>
+                    <number name="arraySize" id="67" type="integer" length="4"/>
+                </structure>
+            </structure>
+        </structure>
+        <structure name="String" id="27" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <number name="stringLength" id="71" type="integer" length="3"/>
+            <string name="&lt;string&gt;" id="72" type="fixed-length" length="stringLength"/>
+        </structure>
+        <structure name="TopLevelLocationInfo" id="79" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <number name="Type" mustmatch="yes" id="81" type="integer" length="1">
+                <fixedvalues>
+                    <fixedvalue name="locationInfo" value="1"/>
+                </fixedvalues>
+            </number>
+            <number name="numberOfFiles" id="82" type="integer" length="2"/>
+            <structure name="File" id="84" repeatmin="numberOfFiles" repeatmax="numberOfFiles">
+                <structref name="&lt;String&gt;" id="86" structure="id:27"/>
+            </structure>
+        </structure>
+        <structure name="TopLevelCode" id="88" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <number name="Type" mustmatch="yes" id="90" type="integer" length="1">
+                <fixedvalues>
+                    <fixedvalue name="Code" value="2"/>
+                    <fixedvalue name="CodeDebug" value="3"/>
+                </fixedvalues>
+            </number>
+            <number name="codeIndex" id="94" type="integer" length="8"/>
+        </structure>
+    </grammar>
+</ufwb>

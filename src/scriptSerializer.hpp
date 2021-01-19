@@ -36,4 +36,9 @@ private:
 
     static std::vector<char> decompressData(std::string_view data);
     static std::vector<char> decompressDataDictionary(const std::vector<char>& data, const std::vector<char>& dictionary);
+
+
+    static STRINGTYPE readString(std::istream& input);
+    static void writeString(std::ostream& output, std::string_view string);
+
 };
