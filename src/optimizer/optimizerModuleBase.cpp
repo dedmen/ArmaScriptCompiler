@@ -2,8 +2,10 @@
 #include <algorithm>
 #include <charconv>
 #include <queue>
-
 #include "runtime/d_string.h"
+#include <parser/sqf/sqf_parser.hpp>
+
+#include "parser/sqf/parser.tab.hh"
 
 
 void OptimizerModuleBase::Node::dumpTree(std::ostream& output, size_t indent) const {
@@ -97,132 +99,174 @@ OptimizerModuleBase::Node OptimizerModuleBase::nodeFromAST(const astnode& input)
     auto nodeType = input.kind;
     switch (nodeType) {
 
-    case sqf::parser::sqf::impl_default::nodetype::ASSIGNMENT:
-    case sqf::parser::sqf::impl_default::nodetype::ASSIGNMENTLOCAL: {
+    case sqf::parser::sqf::bison::astkind::ASSIGNMENT:
+    case sqf::parser::sqf::bison::astkind::ASSIGNMENT_LOCAL: {
         Node newNode;
 
-        newNode.type = nodeType == sqf::parser::sqf::impl_default::nodetype::ASSIGNMENT ? InstructionType::assignTo : InstructionType::assignToLocal;
-        newNode.file = input.path.virtual_;
-        newNode.line = input.line;
-        newNode.offset = input.file_offset;
-        auto varname = input.children[0].content;
+        newNode.type = nodeType == sqf::parser::sqf::bison::astkind::ASSIGNMENT ? InstructionType::assignTo : InstructionType::assignToLocal;
+        newNode.file = *input.token.path;
+        newNode.line = input.token.line;
+        newNode.offset = input.token.offset;
+        auto varname = std::string(input.token.contents);
         std::transform(varname.begin(), varname.end(), varname.begin(), ::tolower);
-        newNode.value = std::move(varname);
+        newNode.value = std::string(varname);
 
-        newNode.children.emplace_back(nodeFromAST(input.children[1]));
+        newNode.children.emplace_back(nodeFromAST(input.children[0]));
         return newNode;
     }
-    case sqf::parser::sqf::impl_default::nodetype::BEXP1:
-    case sqf::parser::sqf::impl_default::nodetype::BEXP2:
-    case sqf::parser::sqf::impl_default::nodetype::BEXP3:
-    case sqf::parser::sqf::impl_default::nodetype::BEXP4:
-    case sqf::parser::sqf::impl_default::nodetype::BEXP5:
-    case sqf::parser::sqf::impl_default::nodetype::BEXP6:
-    case sqf::parser::sqf::impl_default::nodetype::BEXP7:
-    case sqf::parser::sqf::impl_default::nodetype::BEXP8:
-    case sqf::parser::sqf::impl_default::nodetype::BEXP9:
-    case sqf::parser::sqf::impl_default::nodetype::BEXP10:
-    case sqf::parser::sqf::impl_default::nodetype::BINARYEXPRESSION: {
+    case sqf::parser::sqf::bison::astkind::EXP0:
+    case sqf::parser::sqf::bison::astkind::EXP1:
+    case sqf::parser::sqf::bison::astkind::EXP2:
+    case sqf::parser::sqf::bison::astkind::EXP3:
+    case sqf::parser::sqf::bison::astkind::EXP4:
+    case sqf::parser::sqf::bison::astkind::EXP5:
+    case sqf::parser::sqf::bison::astkind::EXP6:
+    case sqf::parser::sqf::bison::astkind::EXP7:
+    case sqf::parser::sqf::bison::astkind::EXP8:
+    case sqf::parser::sqf::bison::astkind::EXP9: {
         Node newNode;
 
         newNode.type = InstructionType::callBinary;
-        newNode.file = input.path.virtual_;
-        newNode.line = input.line;
-        newNode.offset = input.file_offset;
-        auto varname = input.children[1].content;
+        newNode.file = *input.token.path;
+        newNode.line = input.token.line;
+        newNode.offset = input.token.offset;
+        auto varname = std::string(input.token.contents);
         std::transform(varname.begin(), varname.end(), varname.begin(), ::tolower);
-        newNode.value = std::move(varname);
+        newNode.value = std::string(varname);
 
         newNode.children.emplace_back(nodeFromAST(input.children[0]));
-        newNode.children.emplace_back(nodeFromAST(input.children[2]));
+        newNode.children.emplace_back(nodeFromAST(input.children[1]));
 
         return newNode;
     }
-    case sqf::parser::sqf::impl_default::nodetype::BINARYOP: __debugbreak(); break;
-    case sqf::parser::sqf::impl_default::nodetype::PRIMARYEXPRESSION: __debugbreak(); break;
-    case sqf::parser::sqf::impl_default::nodetype::NULAROP: {
+    case sqf::parser::sqf::bison::astkind::EXPN: {
         Node newNode;
 
         newNode.type = InstructionType::callNular;
-        newNode.file = input.path.virtual_;
-        newNode.line = input.line;
-        newNode.offset = input.file_offset;
-        auto varname = input.content;
+        newNode.file = *input.token.path;
+        newNode.line = input.token.line;
+        newNode.offset = input.token.offset;
+        auto varname = std::string(input.token.contents);
         std::transform(varname.begin(), varname.end(), varname.begin(), ::tolower);
-        newNode.value = std::move(varname);
+        newNode.value = std::string(varname);
         return newNode;
     }
-    case sqf::parser::sqf::impl_default::nodetype::UNARYEXPRESSION: {
+    case sqf::parser::sqf::bison::astkind::EXPU: {
         Node newNode;
 
         newNode.type = InstructionType::callUnary;
-        newNode.file = input.path.virtual_;
-        newNode.line = input.line;
-        newNode.offset = input.file_offset;
-        auto varname = input.children[0].content;
+        newNode.file = *input.token.path;
+        newNode.line = input.token.line;
+        newNode.offset = input.token.offset;
+        auto varname = std::string(input.token.contents);
         std::transform(varname.begin(), varname.end(), varname.begin(), ::tolower);
-        newNode.value = std::move(varname);
-        auto subEl = nodeFromAST(input.children[1]);
+        newNode.value = std::string(varname);
+        auto subEl = nodeFromAST(input.children[0]);
 
         newNode.children.emplace_back(std::move(subEl));
         return newNode;
     }
-    case sqf::parser::sqf::impl_default::nodetype::UNARYOP: __debugbreak(); break;
-    case sqf::parser::sqf::impl_default::nodetype::NUMBER:
-    case sqf::parser::sqf::impl_default::nodetype::HEXNUMBER: {
+    case sqf::parser::sqf::bison::astkind::NUMBER:
+    case sqf::parser::sqf::bison::astkind::HEXNUMBER: {
         float val;
         auto res =
-            (nodeType == sqf::parser::sqf::impl_default::nodetype::HEXNUMBER) ?
-            std::from_chars(input.content.data() + 2, input.content.data() + input.content.size(), val, std::chars_format::hex)
+            (nodeType == sqf::parser::sqf::bison::astkind::HEXNUMBER) ?
+            std::from_chars(input.token.contents.data() + 2, input.token.contents.data() + input.token.contents.size(), val, std::chars_format::hex)
             :
-            std::from_chars(input.content.data(), input.content.data() + input.content.size(), val);
+            std::from_chars(input.token.contents.data(), input.token.contents.data() + input.token.contents.size(), val);
         if (res.ec == std::errc::invalid_argument) {
-            throw std::runtime_error("invalid scalar at: " + input.path.virtual_ + ":" + std::to_string(input.line));
+            throw std::runtime_error("invalid scalar at: " + *input.token.path + ":" + std::to_string(input.token.line));
         }
         else if (res.ec == std::errc::result_out_of_range) {
-            throw std::runtime_error("scalar out of range at: " + input.path.virtual_ + ":" + std::to_string(input.line));
+            throw std::runtime_error("scalar out of range at: " + *input.token.path + ":" + std::to_string(input.token.line));
         }
 
 
         Node newNode;
 
         newNode.type = InstructionType::push;
-        newNode.file = input.path.virtual_;
-        newNode.line = input.line;
-        newNode.offset = input.file_offset;
+        newNode.file = *input.token.path;
+        newNode.line = input.token.line;
+        newNode.offset = input.token.offset;
         newNode.value = val;
         return newNode;
     }
-    case sqf::parser::sqf::impl_default::nodetype::VARIABLE: {
+    case sqf::parser::sqf::bison::astkind::IDENT: {
         Node newNode;
 
         newNode.type = InstructionType::getVariable;
-        newNode.file = input.path.virtual_;
-        newNode.line = input.line;
-        newNode.offset = input.file_offset;
-        auto varname = input.content;
+        newNode.file = *input.token.path;
+        newNode.line = input.token.line;
+        newNode.offset = input.token.offset;
+        auto varname = std::string(input.token.contents);
         std::transform(varname.begin(), varname.end(), varname.begin(), ::tolower);
-        newNode.value = std::move(varname);
+        newNode.value = std::string(varname);
         return newNode;
     }
-    case sqf::parser::sqf::impl_default::nodetype::STRING: {
+    case sqf::parser::sqf::bison::astkind::STRING: {
         Node newNode;
 
         newNode.type = InstructionType::push;
-        newNode.file = input.path.virtual_;
-        newNode.line = input.line;
-        newNode.offset = input.file_offset;
-        newNode.value = ::sqf::types::d_string::from_sqf(input.content);
+        newNode.file = *input.token.path;
+        newNode.line = input.token.line;
+        newNode.offset = input.token.offset;
+        newNode.value = ::sqf::types::d_string::from_sqf(input.token.contents);
         return newNode;
     }
-    case sqf::parser::sqf::impl_default::nodetype::CODE: {
+
+    case sqf::parser::sqf::bison::astkind::BOOLEAN_TRUE: {
         Node newNode;
 
         newNode.type = InstructionType::push;
-        newNode.file = input.path.virtual_;
-        newNode.line = input.line;
-        newNode.offset = input.file_offset;
-        newNode.value = ScriptCodePiece({}, input.length - 2, input.file_offset + 1);//instructions are empty as they are in node children
+        newNode.file = *input.token.path;
+        newNode.line = input.token.line;
+        newNode.offset = input.token.offset;
+        newNode.value = true;
+        return newNode;
+    }
+    case sqf::parser::sqf::bison::astkind::BOOLEAN_FALSE: {
+        Node newNode;
+
+        newNode.type = InstructionType::push;
+        newNode.file = *input.token.path;
+        newNode.line = input.token.line;
+        newNode.offset = input.token.offset;
+        newNode.value = false;
+        return newNode;
+    }
+
+
+
+
+    case sqf::parser::sqf::bison::astkind::CODE: {
+        Node newNode;
+
+        newNode.type = InstructionType::push;
+        newNode.file = *input.token.path;
+        newNode.line = input.token.line;
+        newNode.offset = input.token.offset;
+        //newNode.value = ScriptCodePiece({}, input.length - 2, input.token.offset + 1);//instructions are empty as they are in node children
+
+        // empty code {}
+        if (input.children.empty()) return newNode;
+
+        if (input.children[0].kind != sqf::parser::sqf::bison::astkind::STATEMENTS)
+            __debugbreak();
+
+        for (auto& it : input.children[0].children) {
+            newNode.children.emplace_back(nodeFromAST(it));
+        }
+
+        return newNode;
+    }
+
+    case sqf::parser::sqf::bison::astkind::STATEMENTS: { // this is probably wrong
+        Node newNode;
+
+        newNode.type = InstructionType::endStatement; //just a dummy
+        //newNode.file = *input.token.path;
+        newNode.line = input.token.line;
+        newNode.offset = input.token.offset;
 
         for (auto& it : input.children) {
             newNode.children.emplace_back(nodeFromAST(it));
@@ -230,34 +274,36 @@ OptimizerModuleBase::Node OptimizerModuleBase::nodeFromAST(const astnode& input)
 
         return newNode;
     }
-    case sqf::parser::sqf::impl_default::nodetype::ARRAY: {
+
+
+    case sqf::parser::sqf::bison::astkind::ARRAY: {
 
         Node newNode;
 
         newNode.type = InstructionType::makeArray;
-        newNode.file = input.path.virtual_;
-        newNode.line = input.line;
-        newNode.offset = input.file_offset;
+        newNode.file = *input.token.path;
+        newNode.line = input.token.line;
+        newNode.offset = input.token.offset;
         for (auto& it : input.children) {
             newNode.children.emplace_back(nodeFromAST(it));
         }
 
         return newNode;
     }
-                                              //case sqf::parser::sqf::impl_default::nodetype::NA:
-                                              //case sqf::parser::sqf::impl_default::nodetype::SQF:
-                                              //case sqf::parser::sqf::impl_default::nodetype::STATEMENT:
-                                              //case sqf::parser::sqf::impl_default::nodetype::BRACKETS:
+                                              //case sqf::parser::sqf::bison::astkind::NA:
+                                              //case sqf::parser::sqf::bison::astkind::SQF:
+                                              //case sqf::parser::sqf::bison::astkind::STATEMENT:
+                                              //case sqf::parser::sqf::bison::astkind::BRACKETS:
                                               //    for (auto& it : node.children)
                                               //        stuffAST(output, instructions, it);
     default: {
 
-            Node newNode;
+            Node newNode; // old stuff, now handled by astkind::STATEMENTS
 
             newNode.type = InstructionType::endStatement; //just a dummy
-            newNode.file = input.path.virtual_;
-            newNode.line = input.line;
-            newNode.offset = input.file_offset;
+            newNode.file = *input.token.path;
+            newNode.line = input.token.line;
+            newNode.offset = input.token.offset;
             for (auto& it : input.children) {
                 newNode.children.emplace_back(nodeFromAST(it));
             }

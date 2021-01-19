@@ -9,8 +9,8 @@
 #include <runtime/runtime.h>
 #include <runtime/parser/preprocessor.h>
 #include <runtime/parser/sqf.h>
-#include <parser/sqf/default.h>
-using astnode = sqf::parser::sqf::impl_default::astnode;
+#include <parser/sqf/sqf_parser.hpp>
+using astnode = sqf::parser::sqf::bison::astnode;
 
 class ScriptCompiler {
 public:

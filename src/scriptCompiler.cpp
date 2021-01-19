@@ -9,13 +9,11 @@
 #include "optimizer/optimizer.h"
 #include "scriptSerializer.hpp"
 
-#include <parser/sqf/default.h>
-
-
 #include "fileio/default.h"
 #include "operators/ops.h"
 #include "parser/config/default.h"
 #include "parser/preprocessor/default.h"
+#include "parser/sqf/parser.tab.hh"
 #include "runtime/d_string.h"
 
 std::once_flag commandMapInitFlag;
@@ -24,7 +22,7 @@ class MyLogger : public StdOutLogger {
     std::ofstream logOut;
     std::mutex lock;
 public:
-    MyLogger() : logOut("P:\log.txt") {}
+    MyLogger() : logOut("P:\\log.txt") {}
     void log(const LogMessageBase& message) override {
         std::lock_guard l(lock);
         StdOutLogger::log(message);
@@ -48,7 +46,7 @@ ScriptCompiler::ScriptCompiler(const std::vector<std::filesystem::path>& include
     vm->fileio(std::make_unique<sqf::fileio::impl_default>(vmlogger));
     vm->parser_config(std::make_unique<sqf::parser::config::impl_default>(vmlogger));
     vm->parser_preprocessor(std::make_unique<sqf::parser::preprocessor::impl_default>(vmlogger));
-    vm->parser_sqf(std::make_unique<sqf::parser::sqf::impl_default>(vmlogger));
+    vm->parser_sqf(std::make_unique<sqf::parser::sqf::parser>(vmlogger));
 
     //sqf::operators::ops_dummy_binary(*vm);
     //sqf::operators::ops_dummy_unary(*vm);
@@ -97,10 +95,11 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path physicalPat
     bool errorflag = false;
 
 
-    sqf::parser::sqf::impl_default sqfParser(vmlogger);
-    bool errflag = false;
-    auto ast = sqfParser.get_ast(*vm, *preprocessedScript, sqf::runtime::fileio::pathinfo(physicalPath.string(), virtualPath.string()), &errflag);
-    if (errflag) {
+    sqf::parser::sqf::parser sqfParser(vmlogger);
+    sqf::parser::sqf::bison::astnode ast;
+    sqf::parser::sqf::tokenizer tokenizer(preprocessedScript->begin(), preprocessedScript->end(), virtualPath.string());
+    auto errflag = !sqfParser.get_tree(*vm, tokenizer, &ast);
+    if (errflag || ast.children.empty())  {
         //__debugbreak();
         return CompiledCodeData();
     }
@@ -113,13 +112,19 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path physicalPat
 
 
     if (true) {
-        auto node = OptimizerModuleBase::nodeFromAST(ast);
+        auto& statementsNode = ast.children[0];
+        if (statementsNode.kind != sqf::parser::sqf::bison::astkind::STATEMENTS)
+            __debugbreak();
+
+        ///statementsNode.kind = sqf::parser::sqf::bison::astkind::CODE;
+
+        auto node = OptimizerModuleBase::nodeFromAST(statementsNode);
     
         //std::ofstream nodeo("P:\\node.txt");
         //node.dumpTree(nodeo, 0);
         //nodeo.close();
     
-        auto res = node.bottomUpFlatten();
+        //auto res = node.bottomUpFlatten();
     
         Optimizer opt;
     
@@ -177,144 +182,147 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
     auto nodeType = node.kind;
     switch (nodeType) {
 
-    case sqf::parser::sqf::impl_default::nodetype::ASSIGNMENT:
-    case sqf::parser::sqf::impl_default::nodetype::ASSIGNMENTLOCAL: {
-        auto varname = node.children[0].content;
+    case sqf::parser::sqf::bison::astkind::ASSIGNMENT:
+    case sqf::parser::sqf::bison::astkind::ASSIGNMENT_LOCAL: {
+        auto varname = std::string(node.token.contents);
         //need value on stack first
-        ASTToInstructions(output, temp, instructions, node.children[1]);
+        ASTToInstructions(output, temp, instructions, node.children[0]);
         std::transform(varname.begin(), varname.end(), varname.begin(), ::tolower);
         instructions.emplace_back(ScriptInstruction{
-            nodeType == sqf::parser::sqf::impl_default::nodetype::ASSIGNMENT ?
+            nodeType == sqf::parser::sqf::bison::astkind::ASSIGNMENT ?
             InstructionType::assignTo
             :
             InstructionType::assignToLocal
-            , node.file_offset, getFileIndex(node.path.virtual_), node.line, varname });
+            , node.token.offset, getFileIndex(*node.token.path), node.token.line, varname });
     }
                                                         break;
-    case sqf::parser::sqf::impl_default::nodetype::BEXP1:
-    case sqf::parser::sqf::impl_default::nodetype::BEXP2:
-    case sqf::parser::sqf::impl_default::nodetype::BEXP3:
+    case sqf::parser::sqf::bison::astkind::EXP0:
+    case sqf::parser::sqf::bison::astkind::EXP1:
+    case sqf::parser::sqf::bison::astkind::EXP2:
+    case sqf::parser::sqf::bison::astkind::EXP3:
         //number
         //binaryop
         //number
-    case sqf::parser::sqf::impl_default::nodetype::BEXP4:
+    case sqf::parser::sqf::bison::astkind::EXP4:
         //unary left arg
         //binary command
         //code on right
-    case sqf::parser::sqf::impl_default::nodetype::BEXP5:
-    case sqf::parser::sqf::impl_default::nodetype::BEXP6:
+    case sqf::parser::sqf::bison::astkind::EXP5:
+    case sqf::parser::sqf::bison::astkind::EXP6:
         //constant
         //binaryop
         //unaryop
-    case sqf::parser::sqf::impl_default::nodetype::BEXP7:
-    case sqf::parser::sqf::impl_default::nodetype::BEXP8:
-    case sqf::parser::sqf::impl_default::nodetype::BEXP9:
-    case sqf::parser::sqf::impl_default::nodetype::BEXP10:
-    case sqf::parser::sqf::impl_default::nodetype::BINARYEXPRESSION: {
+    case sqf::parser::sqf::bison::astkind::EXP7:
+    case sqf::parser::sqf::bison::astkind::EXP8:
+    case sqf::parser::sqf::bison::astkind::EXP9: {
 
         //get left arg on stack
         ASTToInstructions(output, temp, instructions, node.children[0]);
         //get right arg on stack
-        ASTToInstructions(output, temp, instructions, node.children[2]);
+        ASTToInstructions(output, temp, instructions, node.children[1]);
         //push binary op
-        auto name = node.children[1].content;
+        auto name = std::string(node.token.contents);
         std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-        instructions.emplace_back(ScriptInstruction{ InstructionType::callBinary, node.file_offset, getFileIndex(node.path.virtual_), node.line, name });
+        instructions.emplace_back(ScriptInstruction{ InstructionType::callBinary, node.token.offset, getFileIndex(*node.token.path), node.token.line, name });
 
         break;
     }
-    case sqf::parser::sqf::impl_default::nodetype::BINARYOP: __debugbreak(); break;
-
-    case sqf::parser::sqf::impl_default::nodetype::PRIMARYEXPRESSION: __debugbreak(); break;
-    case sqf::parser::sqf::impl_default::nodetype::NULAROP: {
+    case sqf::parser::sqf::bison::astkind::EXPN: {
         //push nular op
-        auto name = node.content;
+        auto name = std::string(node.token.contents);
         std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-        if (name == "true"sv) {
-            ScriptConstant newConst;
-            newConst = true;
-            auto index = output.constants.size();
-            output.constants.emplace_back(std::move(newConst));
-            instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.file_offset, getFileIndex(node.path.virtual_), node.line, index });
-        } else if (name == "false"sv) {
-            ScriptConstant newConst;
-            newConst = false;
-            auto index = output.constants.size();
-            output.constants.emplace_back(std::move(newConst));
-            instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.file_offset, getFileIndex(node.path.virtual_), node.line, index });
-        } else
-            instructions.emplace_back(ScriptInstruction{ InstructionType::callNular, node.file_offset, getFileIndex(node.path.virtual_), node.line, name });
+        instructions.emplace_back(ScriptInstruction{ InstructionType::callNular, node.token.offset, getFileIndex(*node.token.path), node.token.line, name });
         break;
     }
-    case sqf::parser::sqf::impl_default::nodetype::UNARYEXPRESSION: {
+    case sqf::parser::sqf::bison::astkind::EXPU: {
         //unary operator
         //right arg
 
         //get right arg on stack
-        ASTToInstructions(output, temp, instructions, node.children[1]);
+        ASTToInstructions(output, temp, instructions, node.children[0]);
         //push unary op
-        auto name = node.children[0].content;
+        auto name = std::string(node.token.contents);
         std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-        instructions.emplace_back(ScriptInstruction{ InstructionType::callUnary, node.file_offset, getFileIndex(node.path.virtual_), node.line, name });
+        instructions.emplace_back(ScriptInstruction{ InstructionType::callUnary, node.token.offset, getFileIndex(*node.token.path), node.token.line, name });
         break;
     }
-    case sqf::parser::sqf::impl_default::nodetype::UNARYOP: __debugbreak(); break;
-    case sqf::parser::sqf::impl_default::nodetype::NUMBER:
-    case sqf::parser::sqf::impl_default::nodetype::HEXNUMBER: {
+    case sqf::parser::sqf::bison::astkind::NUMBER:
+    case sqf::parser::sqf::bison::astkind::HEXNUMBER: {
         ScriptConstant newConst;
 
         float val;
         auto res = 
-            (nodeType == sqf::parser::sqf::impl_default::nodetype::HEXNUMBER) ?
-            std::from_chars(node.content.data()+2, node.content.data() + node.content.size(), val, std::chars_format::hex)
+            (nodeType == sqf::parser::sqf::bison::astkind::HEXNUMBER) ?
+            std::from_chars(node.token.contents.data()+2, node.token.contents.data() + node.token.contents.size(), val, std::chars_format::hex)
             :            
-            std::from_chars(node.content.data(), node.content.data() + node.content.size(), val);
+            std::from_chars(node.token.contents.data(), node.token.contents.data() + node.token.contents.size(), val);
         if (res.ec == std::errc::invalid_argument) {
-            throw std::runtime_error("invalid scalar at: " + node.path.virtual_ + ":" + std::to_string(node.line));
+            throw std::runtime_error("invalid scalar at: " + *node.token.path + ":" + std::to_string(node.token.line));
         }
         else if (res.ec == std::errc::result_out_of_range) {
-            throw std::runtime_error("scalar out of range at: " + node.path.virtual_ + ":" + std::to_string(node.line));
+            throw std::runtime_error("scalar out of range at: " + *node.token.path + ":" + std::to_string(node.token.line));
         }
         newConst = val;
         auto index = output.constants.size();
         output.constants.emplace_back(std::move(newConst));
 
-        instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.file_offset, getFileIndex(node.path.virtual_), node.line, index });
+        instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.token.offset, getFileIndex(*node.token.path), node.token.line, index });
         break;
     }
-    case sqf::parser::sqf::impl_default::nodetype::VARIABLE: {
+    case sqf::parser::sqf::bison::astkind::IDENT: {
         //getvariable
-        auto varname = node.content;
+        auto varname = std::string(node.token.contents);
         std::transform(varname.begin(), varname.end(), varname.begin(), ::tolower);
-        instructions.emplace_back(ScriptInstruction{ InstructionType::getVariable, node.file_offset, getFileIndex(node.path.virtual_), node.line, varname });
+        instructions.emplace_back(ScriptInstruction{ InstructionType::getVariable, node.token.offset, getFileIndex(*node.token.path), node.token.line, varname });
         break;
     }
-    case sqf::parser::sqf::impl_default::nodetype::STRING: {
+    case sqf::parser::sqf::bison::astkind::STRING: {
         ScriptConstant newConst;
-        newConst = ::sqf::types::d_string::from_sqf(node.content);
+        newConst = ::sqf::types::d_string::from_sqf(std::string(node.token.contents));
         auto index = output.constants.size();
         output.constants.emplace_back(std::move(newConst));
 
-        instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.file_offset, getFileIndex(node.path.virtual_), node.line, index });
+        instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.token.offset, getFileIndex(*node.token.path), node.token.line, index });
         break;
     }
-    case sqf::parser::sqf::impl_default::nodetype::CODE: {
+
+    case sqf::parser::sqf::bison::astkind::BOOLEAN_TRUE: {
+        ScriptConstant newConst;
+        newConst = true;
+        auto index = output.constants.size();
+        output.constants.emplace_back(std::move(newConst));
+
+        instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.token.offset, getFileIndex(*node.token.path), node.token.line, index });
+        break;
+    }
+
+    case sqf::parser::sqf::bison::astkind::BOOLEAN_FALSE: {
+        ScriptConstant newConst;
+        //::sqf::types::d_string::from_sqf(std::string(node.token.contents))
+        newConst = false;
+        auto index = output.constants.size();
+        output.constants.emplace_back(std::move(newConst));
+
+        instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.token.offset, getFileIndex(*node.token.path), node.token.line, index });
+        break;
+    }
+    case sqf::parser::sqf::bison::astkind::CODE: {
         ScriptConstant newConst;
         std::vector<ScriptInstruction> instr;
         for (auto& it : node.children) {
-            instr.emplace_back(ScriptInstruction{ InstructionType::endStatement, node.file_offset, 0, 0 });
+            instr.emplace_back(ScriptInstruction{ InstructionType::endStatement, node.token.offset, 0, 0 });
             ASTToInstructions(output, temp, instr, it);
         }
 
-        newConst = ScriptCodePiece(std::move(instr), node.length-2, node.file_offset+1 );
+        //newConst = ScriptCodePiece(std::move(instr), node.length-2, node.token.offset +1 );
         //#TODO duplicate detection
         auto index = output.constants.size();
         output.constants.emplace_back(std::move(newConst));
 
-        instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.file_offset, getFileIndex(node.path.virtual_), node.line, index });
+        instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.token.offset, getFileIndex(*node.token.path), node.token.line, index });
         break;
     }
-    case sqf::parser::sqf::impl_default::nodetype::ARRAY: {
+    case sqf::parser::sqf::bison::astkind::ARRAY: {
         //push elements first
         for (auto& it : node.children)
             ASTToInstructions(output, temp, instructions, it);
@@ -325,20 +333,20 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
         //make array instruction
         //array instruction has size as argument
-        instructions.emplace_back(ScriptInstruction{ InstructionType::makeArray, node.file_offset, getFileIndex(node.path.virtual_), node.line, node.children.size() });
+        instructions.emplace_back(ScriptInstruction{ InstructionType::makeArray, node.token.offset, getFileIndex(*node.token.path), node.token.line, node.children.size() });
 
         break;
     }
-                                              //case sqf::parser::sqf::impl_default::nodetype::NA:
-                                              //case sqf::parser::sqf::impl_default::nodetype::SQF:
-                                              //case sqf::parser::sqf::impl_default::nodetype::STATEMENT:
-                                              //case sqf::parser::sqf::impl_default::nodetype::BRACKETS:
+                                              //case sqf::parser::sqf::bison::astkind::NA:
+                                              //case sqf::parser::sqf::bison::astkind::SQF:
+                                              //case sqf::parser::sqf::bison::astkind::STATEMENT:
+                                              //case sqf::parser::sqf::bison::astkind::BRACKETS:
                                               //    for (auto& it : node.children)
                                               //        stuffAST(output, instructions, it);
     default:
         for (size_t i = 0; i < node.children.size(); i++) {
             if (i != 0 || instructions.empty()) //end statement
-                instructions.emplace_back(ScriptInstruction{ InstructionType::endStatement, node.file_offset, 0, 0 });
+                instructions.emplace_back(ScriptInstruction{ InstructionType::endStatement, node.token.offset, 0, 0 });
             ASTToInstructions(output, temp, instructions, node.children[i]);
         }
     }
