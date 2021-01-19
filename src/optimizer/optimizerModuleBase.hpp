@@ -2,7 +2,8 @@
 #include "../compiledCode.hpp"
 #include <functional>
 
-struct astnode;
+#include <parser/sqf/default.h>
+using astnode = sqf::parser::sqf::impl_default::astnode;
 
 template<class Sig>
 class Signal;

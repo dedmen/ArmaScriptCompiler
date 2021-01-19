@@ -82,10 +82,16 @@ set(INCLUDE_PATH_ZSTD "${LIBRARY_PATH_ZSTD}/lib")
 
 
 set(SQFVM_BUILD_EXECUTABLE OFF CACHE BOOL "no" FORCE)
+set(SQFVM_BUILD_EXECUTABLE_ARMA2_LOCALKEYWORD OFF CACHE BOOL "no" FORCE)
 set(SQFVM_BUILD_LIBRARY OFF CACHE BOOL "no" FORCE)
-set(SQFVM_BUILD_STATIC_LIBRARY OFF CACHE BOOL "no" FORCE)
-set(SQFVM_BUILD_STATIC_LIBRARY_NC ON CACHE BOOL "yes" FORCE)
+set(SQFVM_BUILD_LIBRARY_SQC_SUPPORT OFF CACHE BOOL "no" FORCE)
+set(SQFVM_BUILD_STATIC_LIBRARY ON CACHE BOOL "yes" FORCE)
+set(SQFVM_BUILD_STATIC_LIBRARY_SQC_SUPPORT OFF CACHE BOOL "no" FORCE)
+set(SQFVM_BUILD_EXECUTABLE_SQC_SUPPORT OFF CACHE BOOL "no" FORCE)
+set(SQFVM_BUILD_EXECUTABLE_FULL_DIAGNOSE OFF CACHE BOOL "no" FORCE)
+set(SQFVM_BUILD_EXECUTABLE_ARMA2_LOCALKEYWORD_FULL_DIAGNOSE OFF CACHE BOOL "no" FORCE)
 
+set(INCLUDE_PATH_SQFVM "${LIBRARY_PATH_SQFVM}/src")
 add_subdirectory(${LIBRARY_PATH_SQFVM})
 add_definitions(/DLOADFILE_CACHE) #SQF VM fileio.cpp cache
 
@@ -93,11 +99,11 @@ add_definitions(/DLOADFILE_CACHE) #SQF VM fileio.cpp cache
 
 add_executable("ArmaScriptCompiler" ${SOURCES_ASC} ${SOURCES_SQFVM} ${SOURCES_ASC_OPT})
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INCLUDE_PATH_ZSTD} ${LIBRARY_PATH_B64}) # ${INCLUDE_PATH_ZSTD} ${INCLUDE_PATH_SQFVM}
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INCLUDE_PATH_ZSTD} ${LIBRARY_PATH_B64} ${INCLUDE_PATH_SQFVM}) # ${INCLUDE_PATH_ZSTD} ${INCLUDE_PATH_SQFVM}
 
 #target_link_libraries("ArmaScriptCompiler" ${CMAKE_THREAD_LIBS_INIT})
 
-target_link_libraries("ArmaScriptCompiler" slibsqfvm_nc libzstd_static)
+target_link_libraries("ArmaScriptCompiler" slibsqfvm libzstd_static)
 
 set_target_properties("ArmaScriptCompiler" PROPERTIES PREFIX "")
 set_target_properties("ArmaScriptCompiler" PROPERTIES FOLDER ArmaScriptCompiler)
@@ -145,7 +151,7 @@ else()
 	)
 	
 	target_compile_options(
-		slibsqfvm_nc PRIVATE 
+		slibsqfvm PRIVATE 
 		"/MP" "/Zi"
 		"$<$<CONFIG:Release>:/MT>"
 		"$<$<CONFIG:Release>:/Ox>"
@@ -156,7 +162,7 @@ else()
 		"/DLOADFILE_CACHE"
 	)
 	target_link_options("ArmaScriptCompiler" PRIVATE "/OPT:REF" "/OPT:ICF" "/DEBUG:FULL" "/LTCG") 
-	target_link_options(slibsqfvm_nc PRIVATE "/OPT:REF" "/OPT:ICF" "/DEBUG:FULL" "/LTCG") 
+	target_link_options(slibsqfvm PRIVATE "/OPT:REF" "/OPT:ICF" "/DEBUG:FULL" "/LTCG") 
 endif()
 
 #Binary signing

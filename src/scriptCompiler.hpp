@@ -3,17 +3,21 @@
 #include <filesystem>
 #include <memory>
 #include <unordered_map>
-#include "virtualmachine.h"
 #include "optimizer/optimizerModuleBase.hpp"
 
-struct astnode;
+
+#include <runtime/runtime.h>
+#include <runtime/parser/preprocessor.h>
+#include <runtime/parser/sqf.h>
+#include <parser/sqf/default.h>
+using astnode = sqf::parser::sqf::impl_default::astnode;
 
 class ScriptCompiler {
 public:
     ScriptCompiler(const std::vector<std::filesystem::path>& includePaths);
 
 
-    CompiledCodeData compileScript(std::filesystem::path file);
+    CompiledCodeData compileScript(std::filesystem::path physicalPath, std::filesystem::path virtualPath);
 private:
     struct CompileTempData {
         std::unordered_map<std::string, uint8_t> fileLoc;
@@ -29,5 +33,5 @@ private:
 
 
 
-    std::unique_ptr<sqf::virtualmachine> vm;
+    std::unique_ptr<sqf::runtime::runtime> vm;
 };

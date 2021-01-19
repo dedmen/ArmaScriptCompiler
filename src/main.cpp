@@ -45,20 +45,28 @@ void compileRecursive(std::filesystem::path inputDir) {
 
 void processFile(ScriptCompiler& comp, std::filesystem::path path) {
     try {
-        auto outputPath = path.parent_path() / (path.stem().string() + ".sqfc");
         auto rootDir = path.root_path();
-        auto test1 = outputPath.lexically_relative(rootDir);
-        outputPath = "P:/" / test1;
+        auto pathRelative = path.lexically_relative(rootDir);
+
+
+        auto outputPath = "P:/" / pathRelative.parent_path() / (path.stem().string() + ".sqfc");
+
+        //if (std::filesystem::exists(outputPath)) return;
+
+
         std::error_code ec;
         std::filesystem::create_directories(outputPath.parent_path(), ec);
         std::cout << "compile " << outputPath.generic_string() << "\n";
 
-        auto compiledData = comp.compileScript(path.generic_string());
+        auto compiledData = comp.compileScript(path.generic_string(), ("\\" / pathRelative).generic_string());
+
+        if (compiledData.constants.empty()) return; // no code or failed to compile
         std::stringstream output(std::stringstream::binary | std::stringstream::out);
-        ScriptSerializer::compiledToBinaryCompressed(compiledData, output);
+        //ScriptSerializer::compiledToBinaryCompressed(compiledData, output);
+        ScriptSerializer::compiledToBinary(compiledData, output);
 
         auto data = output.str();
-        auto encoded = base64_encode(data);
+        auto encoded = data; //base64_encode(data);
 
         std::ofstream outputFile(outputPath, std::ofstream::binary);
 
@@ -78,6 +86,11 @@ void processFile(ScriptCompiler& comp, std::filesystem::path path) {
     } catch (std::domain_error& err) {
 
     }
+    catch (std::runtime_error& err) {
+
+    }
+
+
 }
 
 int main(int argc, char* argv[]) {
@@ -85,14 +98,14 @@ int main(int argc, char* argv[]) {
 
     //std::ifstream inputFile("I:/ACE3/addons/advanced_ballistics/functions/fnc_readWeaponDataFromConfig.sqf");
 
-    ScriptCompiler compiler({ 
-        //static_cast<std::filesystem::path>("I:\\ACE3"),
-        //static_cast<std::filesystem::path>("I:\\CBA_A3"),
-        //static_cast<std::filesystem::path>("F:/Steam/SteamApps/common/Arma 3/Addons/ui_f"),
-        //static_cast<std::filesystem::path>("F:/Steam/SteamApps/common/Arma 3/Addons/functions_f"),
-        //static_cast<std::filesystem::path>("F:/Steam/SteamApps/common/Arma 3/Addons/editor_f")
-        static_cast<std::filesystem::path>("T:/")
-    });
+    //ScriptCompiler compiler({ 
+    //    //static_cast<std::filesystem::path>("I:\\ACE3"),
+    //    //static_cast<std::filesystem::path>("I:\\CBA_A3"),
+    //    //static_cast<std::filesystem::path>("F:/Steam/SteamApps/common/Arma 3/Addons/ui_f"),
+    //    //static_cast<std::filesystem::path>("F:/Steam/SteamApps/common/Arma 3/Addons/functions_f"),
+    //    //static_cast<std::filesystem::path>("F:/Steam/SteamApps/common/Arma 3/Addons/editor_f")
+    //    static_cast<std::filesystem::path>("T:/")
+    //});
 
 
     std::mutex workWait;
@@ -119,7 +132,9 @@ int main(int argc, char* argv[]) {
 
     //compileRecursive("I:/ACE3/addons");
     //compileRecursive("I:/CBA_A3/addons");
-    compileRecursive("T:/");
+    //compileRecursive("T:/x/");
+    compileRecursive("T:/a3/");
+    //compileRecursive("P:/test/");
 
     
     //compileRecursive("I:/CBA_A3/addons");
