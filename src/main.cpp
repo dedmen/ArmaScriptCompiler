@@ -108,6 +108,13 @@ int main(int argc, char* argv[]) {
     //});
 
 
+
+    // if file path contains this, skip it
+    std::vector<std::string> excludeList;
+    excludeList.push_back("missions_f_contact\\sites");
+    excludeList.push_back("missions_f_epa");
+    excludeList.push_back("missions_f_oldman");
+
     std::mutex workWait;
     workWait.lock();
     auto workerFunc = [&]() {
@@ -125,14 +132,26 @@ int main(int argc, char* argv[]) {
             if (tasks.empty())
                 threadsShouldRun = false;
             lock.unlock();
-            processFile(compiler, task);
+
+
+            auto foundExclude = std::find_if(excludeList.begin(), excludeList.end(), [&task](const std::string& excludeItem)
+            {
+                auto taskString = task.string();
+                std::transform(taskString.begin(), taskString.end(), taskString.begin(), ::tolower);
+                return taskString.find(excludeItem) != std::string::npos;
+            });
+
+            if (foundExclude == excludeList.end())
+                processFile(compiler, task);
         }
 
     };
 
     //compileRecursive("I:/ACE3/addons");
     //compileRecursive("I:/CBA_A3/addons");
-    //compileRecursive("T:/x/");
+    compileRecursive("T:/x/");
+    compileRecursive("T:/z/ace/");
+    compileRecursive("T:/z/acex/");
     compileRecursive("T:/a3/");
     //compileRecursive("P:/test/");
 
