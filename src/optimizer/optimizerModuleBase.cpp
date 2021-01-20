@@ -245,8 +245,37 @@ OptimizerModuleBase::Node OptimizerModuleBase::nodeFromAST(const astnode& input)
         newNode.file = *input.token.path;
         newNode.line = input.token.line;
         newNode.offset = input.token.offset;
-        //newNode.value = ScriptCodePiece({}, input.length - 2, input.token.offset + 1);//instructions are empty as they are in node children
 
+        auto codeEnd = input.token.offset;
+
+        if (!input.children.empty()) {
+
+            auto* statements = &input.children[0];
+            if (statements->kind != sqf::parser::sqf::bison::astkind::STATEMENTS)
+                __debugbreak();
+
+            size_t lastToken = 0;
+
+            while (!statements->children.empty()) {
+
+                lastToken = (statements->children.end() - 1)->token.offset;
+                statements = (statements->children.end() - 1)._Ptr;
+            }
+
+            auto endData = input.token.contents.data() + (lastToken - input.token.offset);
+
+            while (*endData && *endData != '}') {
+                ++endData;
+                ++lastToken;
+            }
+            codeEnd = lastToken;
+            newNode.value = ScriptCodePiece({}, codeEnd - input.token.offset - 1, input.token.offset + 1);//instructions are empty as they are in node children
+        } else {
+            newNode.value = ScriptCodePiece({}, 0, input.token.offset + 1);//instructions are empty as they are in node children
+
+        }
+        
+        
         // empty code {}
         if (input.children.empty()) return newNode;
 

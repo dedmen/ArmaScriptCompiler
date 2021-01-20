@@ -314,7 +314,35 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
             ASTToInstructions(output, temp, instr, it);
         }
 
-        //newConst = ScriptCodePiece(std::move(instr), node.length-2, node.token.offset +1 );
+        auto codeEnd = node.token.offset;
+
+        if (!node.children.empty()) {
+
+            auto* statements = &node.children[0];
+            if (statements->kind != sqf::parser::sqf::bison::astkind::STATEMENTS)
+                __debugbreak();
+
+            size_t lastToken = 0;
+
+            while (!statements->children.empty()) {
+
+                lastToken = (statements->children.end() - 1)->token.offset;
+                statements = (statements->children.end() - 1)._Ptr;
+            }
+
+            auto endData = node.token.contents.data() + (lastToken - node.token.offset);
+
+            while (*endData && *endData != '}') {
+                ++endData;
+                ++lastToken;
+            }
+            codeEnd = lastToken;
+            newConst = ScriptCodePiece(std::move(instr), codeEnd - node.token.offset - 1, node.token.offset + 1);
+        } else {
+            newConst = ScriptCodePiece(std::move(instr), 0, node.token.offset + 1);
+        }
+
+        
         //#TODO duplicate detection
         auto index = output.constants.size();
         output.constants.emplace_back(std::move(newConst));

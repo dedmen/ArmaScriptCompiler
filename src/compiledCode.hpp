@@ -76,14 +76,16 @@ struct ScriptCodePiece {
     std::vector<ScriptInstruction> code;
     union {
         struct {
-            unsigned isOffset : 1;
-            unsigned length : 31;
             unsigned offset : 32;
+            unsigned length : 31;
+            unsigned isOffset : 1;
         } contentSplit;
         uint64_t contentString; //pointer to constants
     };
     ScriptCodePiece(std::vector<ScriptInstruction>&& c, uint32_t length, uint32_t offset) : code(c) {
         contentSplit.isOffset = 1;
+        if (length > 0x60'00'00'00)
+            __debugbreak();
         contentSplit.length = length;
         contentSplit.offset = offset;
     }
