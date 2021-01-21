@@ -99,8 +99,10 @@ block type
 
 enum class SerializedBlockType {
     constant,
+    constantCompressed,
     locationInfo,
-    code
+    code,
+    codeDebug
 };
 
 
@@ -117,10 +119,45 @@ void writeT(Type data, std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&data), sizeof(Type));
 }
 
+
+#include <lzokay.hpp>
+
 void ScriptSerializer::compiledToBinary(const CompiledCodeData& code, std::ostream& output) {
     writeT<uint32_t>(code.version, output); //version
     output.flush();
-    writeConstants(code, output);
+
+    if (true) {
+        writeT(static_cast<uint8_t>(SerializedBlockType::constantCompressed), output);
+
+        std::ostringstream buffer(std::ostringstream::binary);
+        writeConstants(code, buffer);
+        auto bufferContent = buffer.str();
+
+        lzokay::Dict<> dict;
+        std::size_t estimated_size = lzokay::compress_worst_size(bufferContent.size());
+        std::unique_ptr<uint8_t[]> compressed(new uint8_t[estimated_size]);
+        std::size_t compressed_size;
+        auto error = lzokay::compress((const uint8_t*)bufferContent.data(), bufferContent.size(), compressed.get(), estimated_size,
+            compressed_size, dict);
+        if (error < lzokay::EResult::Success)
+            __debugbreak();
+
+
+
+        writeT(static_cast<uint32_t>(compressed_size), output);
+        writeT(static_cast<uint32_t>(bufferContent.size()), output);
+        writeT(static_cast<uint8_t>(2), output); // compression method, always 2
+        output.write((const char*)compressed.get(), compressed_size);
+
+    } else {
+        writeT(static_cast<uint8_t>(SerializedBlockType::constant), output);
+        writeConstants(code, output);
+    }
+
+
+
+
+
     output.flush();
 
     auto pos = output.tellp();
@@ -385,7 +422,6 @@ ScriptConstant ScriptSerializer::readConstant(CompiledCodeData& code, std::istre
 }
 
 void ScriptSerializer::writeConstants(const CompiledCodeData& code, std::ostream& output) {
-    writeT(static_cast<uint8_t>(SerializedBlockType::constant), output);
     if (static_cast<uint16_t>(code.constants.size()) != code.constants.size()) {
         throw std::runtime_error("too many constants");
     }

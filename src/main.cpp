@@ -116,6 +116,9 @@ int main(int argc, char* argv[]) {
     excludeList.push_back("missions_f_oldman");
     excludeList.push_back("missions_f_tank");
     excludeList.push_back("missions_f_beta");
+    excludeList.push_back("showcases\\showcase");
+    excludeList.push_back("\\unitplay\\");
+    excludeList.push_back("\\backups\\");
 
     std::mutex workWait;
     workWait.lock();

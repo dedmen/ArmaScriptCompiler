@@ -7,3 +7,6 @@
 [submodule "lib/cpp-base64"]
 	path = lib/cpp-base64
 	url = https://github.com/dedmen/cpp-base64.git
+[submodule "lib/lzokay"]
+	path = lib/lzokay
+	url = https://github.com/jackoalan/lzokay.git
