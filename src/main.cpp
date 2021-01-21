@@ -111,7 +111,7 @@ int main(int argc, char* argv[]) {
 
     // if file path contains this, skip it
     std::vector<std::string> excludeList;
-    excludeList.push_back("missions_f_contact\\sites");
+    excludeList.push_back("missions_f_contact");
     excludeList.push_back("missions_f_epa");
     excludeList.push_back("missions_f_oldman");
     excludeList.push_back("missions_f_tank");

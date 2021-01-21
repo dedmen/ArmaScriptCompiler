@@ -233,7 +233,10 @@ void ScriptSerializer::instructionToBinary(const CompiledCodeData& code, const S
 
         case InstructionType::endStatement: break;
         case InstructionType::push: {
-            writeT(std::get<uint64_t>(instruction.content), output);
+            auto constantIndex = std::get<uint64_t>(instruction.content);
+           if (constantIndex != static_cast<uint16_t>(constantIndex))
+               __debugbreak();
+            writeT(static_cast<uint16_t>(constantIndex), output);
         } break;
         case InstructionType::callUnary: 
         case InstructionType::callBinary: 
@@ -243,8 +246,13 @@ void ScriptSerializer::instructionToBinary(const CompiledCodeData& code, const S
         case InstructionType::getVariable:
             writeString(output, std::get<STRINGTYPE>(instruction.content));
             break;
-        case InstructionType::makeArray:
-            writeT(static_cast<uint32_t>(std::get<uint64_t>(instruction.content)), output);
+        case InstructionType::makeArray: {
+            auto constantIndex = std::get<uint64_t>(instruction.content);
+            if (constantIndex != static_cast<uint16_t>(constantIndex))
+                __debugbreak();
+            writeT(static_cast<uint16_t>(constantIndex), output);
+        } break;
+            
         default: ;
     }
 }
@@ -378,6 +386,9 @@ ScriptConstant ScriptSerializer::readConstant(CompiledCodeData& code, std::istre
 
 void ScriptSerializer::writeConstants(const CompiledCodeData& code, std::ostream& output) {
     writeT(static_cast<uint8_t>(SerializedBlockType::constant), output);
+    if (static_cast<uint16_t>(code.constants.size()) != code.constants.size()) {
+        throw std::runtime_error("too many constants");
+    }
     writeT(static_cast<uint16_t>(code.constants.size()), output);
     int index = 0;
     for (auto& constant : code.constants) {
