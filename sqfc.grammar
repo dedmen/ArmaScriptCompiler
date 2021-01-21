@@ -100,7 +100,7 @@ end
                             <fixedvalue name="Push" value="1"/>
                         </fixedvalues>
                     </number>
-                    <number name="constantIndex" id="53" type="integer" length="8"/>
+                    <number name="constantIndex" id="53" type="integer" length="2"/>
                 </structure>
                 <structure name="InstructionCallCommand" id="55" repeatmin="0">
                     <number name="Type" mustmatch="yes" id="56" type="integer" length="1">
@@ -127,7 +127,7 @@ end
                     <number name="offset" id="64" type="integer" length="4"/>
                     <number name="fileIndex" id="65" type="integer" length="1"/>
                     <number name="fileLIne" id="66" type="integer" length="2"/>
-                    <number name="arraySize" id="67" type="integer" length="4"/>
+                    <number name="arraySize" id="67" type="integer" length="2"/>
                 </structure>
             </structure>
         </structure>

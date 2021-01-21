@@ -135,20 +135,16 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path physicalPat
         //nodeop.close();
     
         ASTToInstructions(stuff, temp, mainCode.code, node);
-        mainCode.contentString = stuff.constants.size();
-        stuff.constants.emplace_back(std::move(*preprocessedScript));
-        stuff.codeIndex = stuff.constants.size();
-        stuff.constants.emplace_back(std::move(mainCode));
+        mainCode.contentString = stuff.AddConstant(std::move(*preprocessedScript));
+        stuff.codeIndex = stuff.AddConstant(std::move(mainCode));
     
         //std::ofstream output2("P:\\outOpt.sqfa", std::ofstream::binary);
         //ScriptSerializer::compiledToHumanReadable(stuff, output2);
         //output2.flush();
     } else {
         ASTToInstructions(stuff, temp, mainCode.code, ast);
-        mainCode.contentString = stuff.constants.size();
-        stuff.constants.emplace_back(std::move(*preprocessedScript));
-        stuff.codeIndex = stuff.constants.size();
-        stuff.constants.emplace_back(std::move(mainCode));
+        mainCode.contentString = stuff.AddConstant(std::move(*preprocessedScript));
+        stuff.codeIndex = stuff.AddConstant(std::move(mainCode));
     }
 
    
@@ -263,8 +259,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
             throw std::runtime_error("scalar out of range at: " + *node.token.path + ":" + std::to_string(node.token.line));
         }
         newConst = val;
-        auto index = output.constants.size();
-        output.constants.emplace_back(std::move(newConst));
+        auto index = output.AddConstant(std::move(newConst));
 
         instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.token.offset, getFileIndex(*node.token.path), node.token.line, index });
         break;
@@ -279,8 +274,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
     case sqf::parser::sqf::bison::astkind::STRING: {
         ScriptConstant newConst;
         newConst = ::sqf::types::d_string::from_sqf(std::string(node.token.contents));
-        auto index = output.constants.size();
-        output.constants.emplace_back(std::move(newConst));
+        auto index = output.AddConstant(std::move(newConst));
 
         instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.token.offset, getFileIndex(*node.token.path), node.token.line, index });
         break;
@@ -289,8 +283,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
     case sqf::parser::sqf::bison::astkind::BOOLEAN_TRUE: {
         ScriptConstant newConst;
         newConst = true;
-        auto index = output.constants.size();
-        output.constants.emplace_back(std::move(newConst));
+        auto index = output.AddConstant(std::move(newConst));
 
         instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.token.offset, getFileIndex(*node.token.path), node.token.line, index });
         break;
@@ -300,8 +293,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
         ScriptConstant newConst;
         //::sqf::types::d_string::from_sqf(std::string(node.token.contents))
         newConst = false;
-        auto index = output.constants.size();
-        output.constants.emplace_back(std::move(newConst));
+        auto index = output.AddConstant(std::move(newConst));
 
         instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.token.offset, getFileIndex(*node.token.path), node.token.line, index });
         break;
@@ -342,10 +334,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
             newConst = ScriptCodePiece(std::move(instr), 0, node.token.offset + 1);
         }
 
-        
-        //#TODO duplicate detection
-        auto index = output.constants.size();
-        output.constants.emplace_back(std::move(newConst));
+        auto index = output.AddConstant(std::move(newConst));
 
         instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.token.offset, getFileIndex(*node.token.path), node.token.line, index });
         break;
@@ -361,7 +350,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
         //make array instruction
         //array instruction has size as argument
-        instructions.emplace_back(ScriptInstruction{ InstructionType::makeArray, node.token.offset, getFileIndex(*node.token.path), node.token.line, node.children.size() });
+        instructions.emplace_back(ScriptInstruction{ InstructionType::makeArray, node.token.offset, getFileIndex(*node.token.path), node.token.line, (uint16_t)node.children.size() });
 
         break;
     }
@@ -435,31 +424,24 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
                     newConst = node.value;
                     std::get<ScriptCodePiece>(newConst).code = std::move(instr);
-                    //#TODO duplicate detection
-                    auto index = output.constants.size();
-                    output.constants.emplace_back(std::move(newConst));
+                    auto index = output.AddConstant(std::move(newConst));
 
                     instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
                 } break;
                 case 1: {//String
-                    auto index = output.constants.size();
-                    output.constants.emplace_back(node.value);
+                    auto index = output.AddConstant(node.value);
                     instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
                 } break;
                 case 2: {//Number
-                    auto index = output.constants.size();
-                    output.constants.emplace_back(node.value);
+                    auto index = output.AddConstant(node.value);
                     instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
                 } break;
                 case 3: {//Bool
-                    auto index = output.constants.size();
-                    output.constants.emplace_back(node.value);
+                    auto index = output.AddConstant(node.value);
                     instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
                 } break;
                 case 4: {//Array
-                    auto value = ASTParseArray(output, temp, node);
-                    auto index = output.constants.size();
-                    output.constants.emplace_back(value);
+                    auto index = output.AddConstant(ASTParseArray(output, temp, node));
 
                     instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
                 } break;
@@ -517,7 +499,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
             //#TODO can already check here if all arguments are const and push a const
 
-            instructions.emplace_back(ScriptInstruction{ InstructionType::makeArray, node.offset, getFileIndex(node.file), node.line, node.children.size() });
+            instructions.emplace_back(ScriptInstruction{ InstructionType::makeArray, node.offset, getFileIndex(node.file), node.line, (uint16_t)node.children.size() });
         } break;
 
 
