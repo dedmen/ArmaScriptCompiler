@@ -51,7 +51,7 @@ void processFile(ScriptCompiler& comp, std::filesystem::path path) {
 
         auto outputPath = "P:/" / pathRelative.parent_path() / (path.stem().string() + ".sqfc");
 
-        //if (std::filesystem::exists(outputPath)) return;
+        if (std::filesystem::exists(outputPath)) return;
 
 
         std::error_code ec;
@@ -114,6 +114,7 @@ int main(int argc, char* argv[]) {
     excludeList.push_back("missions_f_contact\\sites");
     excludeList.push_back("missions_f_epa");
     excludeList.push_back("missions_f_oldman");
+    excludeList.push_back("missions_f_tank");
 
     std::mutex workWait;
     workWait.lock();
