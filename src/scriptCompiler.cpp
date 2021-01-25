@@ -408,8 +408,8 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
     switch (node.type) {
         case InstructionType::push: {
-            switch (node.value.index()) {
-                case 0: {//Code
+            switch (getConstantType(node.value)) {
+                case ConstantType::code: {//Code
                     ScriptConstant newConst;
                     std::vector<ScriptInstruction> instr;
                     for (auto& it : node.children) {
@@ -423,23 +423,20 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
                     instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
                 } break;
-                case 1: {//String
+                case ConstantType::string: 
+                case ConstantType::scalar:
+                case ConstantType::boolean:
+                case ConstantType::nularCommand:                
+                {
                     auto index = output.AddConstant(node.value);
                     instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
-                } break;
-                case 2: {//Number
-                    auto index = output.AddConstant(node.value);
-                    instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
-                } break;
-                case 3: {//Bool
-                    auto index = output.AddConstant(node.value);
-                    instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
-                } break;
-                case 4: {//Array
+                } break;            
+                case ConstantType::array: {//Array
                     auto index = output.AddConstant(ASTParseArray(output, temp, node));
 
                     instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
                 } break;
+                default: __debugbreak();
             }
 
         }break;

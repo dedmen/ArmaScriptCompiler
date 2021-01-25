@@ -81,7 +81,10 @@ private:
         //};
 
         binaryActions["-"] = [](OptimizerModuleBase::Node & node) -> void {
-            if (node.children[0].value.index() == 4) { //array
+
+            auto type = getConstantType(node.children[0].value);
+
+            if (type == ConstantType::array) { //array
                 //std::unordered_set<STRINGTYPE> vals;
                 //
                 //for (auto& i : node.children[1].children) { //#TODO number support
@@ -101,7 +104,7 @@ private:
                 //}
                 //node.children[0].children = std::move(newNodes);
                 return;
-            } else {//float
+            } else if (type == ConstantType::scalar) {//float
                 float leftArg = std::get<float>(node.children[0].value);
                 float rightArg = std::get<float>(node.children[1].value);
                 node.value = leftArg - rightArg;
@@ -111,7 +114,11 @@ private:
             node.constant = true;
         };
 
-        binaryActions["/"] = [](OptimizerModuleBase::Node & node) -> void { //Can't be config as configFile is not const
+        binaryActions["/"] = [](OptimizerModuleBase::Node & node) -> void {
+            auto type = getConstantType(node.children[0].value);
+            if (type != ConstantType::scalar)
+                return;
+
             float leftArg = std::get<float>(node.children[0].value);
             float rightArg = std::get<float>(node.children[1].value);
         
@@ -121,6 +128,10 @@ private:
             node.value = leftArg / rightArg;
         };
         binaryActions["*"] = [](OptimizerModuleBase::Node & node) -> void {
+            auto type = getConstantType(node.children[0].value);
+            if (type != ConstantType::scalar)
+                return;
+
             float leftArg = std::get<float>(node.children[0].value);
             float rightArg = std::get<float>(node.children[1].value);
 
@@ -131,6 +142,10 @@ private:
         };
 
         binaryActions["mod"] = [](OptimizerModuleBase::Node & node) -> void {
+            auto type = getConstantType(node.children[0].value);
+            if (type != ConstantType::scalar)
+                return;
+
             float leftArg = std::get<float>(node.children[0].value);
             float rightArg = std::get<float>(node.children[1].value);
 
@@ -156,8 +171,6 @@ private:
             bool rightArg = std::get<bool>(node.children[0].value);
 
             node.type = InstructionType::push;
-            if (!node.children.empty())
-                __debugbreak();
             node.children.clear();
             node.constant = true;
             node.value = !rightArg;
@@ -166,38 +179,43 @@ private:
 
         // Params is special, it takes an array but never returns part of that array, so we can safely make it constant
         unaryActions["params"] = [](OptimizerModuleBase::Node& node) -> void {
-            auto& rightArg = node.children[0].value;
 
-            __nop();
+            // convert child makeArray node into a constant push
+            if (node.children[0].type == InstructionType::makeArray) {
 
+                //convert nested arrays into constants
+                
+                std::function<void(OptimizerModuleBase::Node&)> resolveMakeArray = [&](OptimizerModuleBase::Node& node)
+                {
+                    if (node.type != InstructionType::makeArray)
+                        return;
 
-            //node.type = InstructionType::push;
-            //if (!node.children.empty())
-            //    __debugbreak();
-            //node.children.clear();
-            //node.constant = true;
-            //node.value = !rightArg;
+                    for (auto& it : node.children)
+                        resolveMakeArray(it);
 
-            //if (node.areChildrenConstant()) {//#TODO when converting to ASM check again if all elements are push
-            //    bool allPush = std::all_of(node.children.begin(), node.children.end(), [](const Node& it)
-            //        {
-            //            return it.type == InstructionType::push;
-            //        });
-            //    if (!allPush) {
-            //        std::stringstream buf;
-            //        node.dumpTree(buf, 0);
-            //        auto str = buf.str();
-            //        __debugbreak();
-            //    }
-            //
-            //    node.value = ScriptConstantArray(); //dummy. Children are the contents
-            //    node.type = InstructionType::push;
-            //    node.constant = true;
-            //}
+                    node.value = ScriptConstantArray(); //dummy. Children are the contents
+                    node.type = InstructionType::push;
+                };
 
 
+                resolveMakeArray(node.children[0]);
+
+                 bool allPush = std::all_of(node.children[0].children.begin(), node.children[0].children.end(), [](const OptimizerModuleBase::Node& it)
+                     {
+                         return it.type == InstructionType::push;
+                     });
+                 if (!allPush) {
+                     std::stringstream buf;
+                     node.dumpTree(buf, 0);
+                     auto str = buf.str();
+                     __debugbreak();
+                 }
 
 
+
+                node.children[0].value = ScriptConstantArray(); //dummy. Children are the contents
+                node.children[0].type = InstructionType::push;
+            }
         };
 
 
@@ -293,21 +311,24 @@ void OptimizerModuleConstantFold::processNode(Node& node) {
         case InstructionType::assignToLocal: break;
         case InstructionType::getVariable: break;
         case InstructionType::makeArray: {
-            return;
+           
             if (node.areChildrenConstant()) {//#TODO when converting to ASM check again if all elements are push
                 bool allPush = std::all_of(node.children.begin(), node.children.end(), [](const Node & it)
                     {
                         return it.type == InstructionType::push;
                     });
-                if (!allPush) {
-                    std::stringstream buf;
-                    node.dumpTree(buf, 0);
-                    auto str = buf.str();
-                    __debugbreak();
-                }
 
-                node.value = ScriptConstantArray(); //dummy. Children are the contents
-                node.type = InstructionType::push;
+
+
+                //if (!allPush) {
+                //    std::stringstream buf;
+                //    node.dumpTree(buf, 0);
+                //    auto str = buf.str();
+                //    __debugbreak();
+                //}
+                //
+                //node.value = ScriptConstantArray(); //dummy. Children are the contents
+                //node.type = InstructionType::push;
                 node.constant = true;
             }
         } break;

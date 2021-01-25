@@ -142,7 +142,7 @@ void ScriptSerializer::compiledToBinary(const CompiledCodeData& code, std::ostre
         if (error < lzokay::EResult::Success)
             __debugbreak();
 
-        writeT(static_cast<uint32_t>(bufferContent.size()), output);
+        writeT(static_cast<uint32_t>(bufferContent.size()), output); // uncompressed size
         writeT(static_cast<uint8_t>(2), output); // compression method, always 2
         output.write((const char*)compressed.get(), compressed_size);
 
