@@ -1,7 +1,21 @@
 #include "optimizerModuleConstantFold.hpp"
 #include <algorithm>
+#include <intrin.h>
 #include <sstream>
 #include <unordered_set>
+
+constexpr auto NularPushConstNularCommand(std::string_view name) {
+    return [name](OptimizerModuleBase::Node& node) -> void {
+        node.type = InstructionType::push;
+        if (!node.children.empty())
+            __debugbreak();
+        node.children.clear();
+        node.constant = true;
+        node.value = ScriptConstantNularCommand(std::string(name));
+    };
+}
+
+
 
 class OptimizerConstantFoldActionMap : public Singleton<OptimizerConstantFoldActionMap> {
 public:
@@ -142,15 +156,59 @@ private:
             bool rightArg = std::get<bool>(node.children[0].value);
 
             node.type = InstructionType::push;
+            if (!node.children.empty())
+                __debugbreak();
             node.children.clear();
             node.constant = true;
             node.value = !rightArg;
         };
+
+
+        // Params is special, it takes an array but never returns part of that array, so we can safely make it constant
+        unaryActions["params"] = [](OptimizerModuleBase::Node& node) -> void {
+            auto& rightArg = node.children[0].value;
+
+            __nop();
+
+
+            //node.type = InstructionType::push;
+            //if (!node.children.empty())
+            //    __debugbreak();
+            //node.children.clear();
+            //node.constant = true;
+            //node.value = !rightArg;
+
+            //if (node.areChildrenConstant()) {//#TODO when converting to ASM check again if all elements are push
+            //    bool allPush = std::all_of(node.children.begin(), node.children.end(), [](const Node& it)
+            //        {
+            //            return it.type == InstructionType::push;
+            //        });
+            //    if (!allPush) {
+            //        std::stringstream buf;
+            //        node.dumpTree(buf, 0);
+            //        auto str = buf.str();
+            //        __debugbreak();
+            //    }
+            //
+            //    node.value = ScriptConstantArray(); //dummy. Children are the contents
+            //    node.type = InstructionType::push;
+            //    node.constant = true;
+            //}
+
+
+
+
+        };
+
+
+
     }
 
     void setupNulary() {
         nularyActions["true"] = [](OptimizerModuleBase::Node & node) -> void {
             node.type = InstructionType::push;
+            if (!node.children.empty())
+                __debugbreak();
             node.children.clear();
             node.constant = true;
             node.value = true;
@@ -158,17 +216,38 @@ private:
         
         nularyActions["false"] = [](OptimizerModuleBase::Node & node) -> void {
             node.type = InstructionType::push;
+            if (!node.children.empty())
+                __debugbreak();
             node.children.clear();
             node.constant = true;
             node.value = false;
         };
 
-        //nularyActions["nil"] = [](OptimizerModuleBase::Node & node) -> void {
-        //    node.type = InstructionType::push;
-        //    node.children.clear();
-        //    node.constant = true;
-        //    node.value = false;//#TODO
-        //};
+#define NULAR_CONST_COMMAND(name) nularyActions[#name] = NularPushConstNularCommand(#name)
+
+        // These commands will be evaluated once at compilation, and then used as a constant with a push instruction
+
+        NULAR_CONST_COMMAND(nil);
+
+        //#TODO test this
+        // NULAR_CONST_COMMAND(missionnamespace);
+        NULAR_CONST_COMMAND(uinamespace);
+        //#TODO test this, its not initialized at preStart
+        //NULAR_CONST_COMMAND(profilenamespace);
+
+        // constant null types
+        NULAR_CONST_COMMAND(objnull);
+        NULAR_CONST_COMMAND(controlnull);
+        NULAR_CONST_COMMAND(displaynull);
+        NULAR_CONST_COMMAND(grpnull);
+        NULAR_CONST_COMMAND(locationnull);
+        NULAR_CONST_COMMAND(scriptnull);
+        NULAR_CONST_COMMAND(confignull);
+
+        //#TODO test, not sure if reliable at preStart?
+        //NULAR_CONST_COMMAND(hasinterface);
+        NULAR_CONST_COMMAND(linebreak);
+        NULAR_CONST_COMMAND(configfile);
     }
 
     std::unordered_map<std::string, std::function<void(OptimizerModuleBase::Node&)>> binaryActions;
@@ -181,17 +260,12 @@ private:
 
 
 
-void OptimizerModuleConstantFold::optimizeConstantFold(Node& node) {
-    
+void OptimizerModuleConstantFold::optimizeConstantFold(Node& node) { 
     auto worklist = node.bottomUpFlatten();
 
     for (auto& it : worklist) {
         processNode(*it);
     }
-
-
-
-
 }
 
 void OptimizerModuleConstantFold::processNode(Node& node) {

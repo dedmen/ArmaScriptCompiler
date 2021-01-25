@@ -34,11 +34,6 @@ public:
 
 static MyLogger vmlogger;
 
-
-
-
-
-
 ScriptCompiler::ScriptCompiler(const std::vector<std::filesystem::path>& includePaths) {
     vmlogger.setEnabled(loglevel::trace, false);
     vm = std::make_unique<sqf::runtime::runtime>(vmlogger, sqf::runtime::runtime::runtime_conf{});
@@ -512,8 +507,6 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
         } break;
     }
-
-
 }
 
 void ScriptCompiler::initIncludePaths(const std::vector<std::filesystem::path>& paths) const {

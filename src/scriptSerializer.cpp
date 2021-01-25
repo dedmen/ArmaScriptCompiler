@@ -142,9 +142,6 @@ void ScriptSerializer::compiledToBinary(const CompiledCodeData& code, std::ostre
         if (error < lzokay::EResult::Success)
             __debugbreak();
 
-
-
-        writeT(static_cast<uint32_t>(compressed_size), output);
         writeT(static_cast<uint32_t>(bufferContent.size()), output);
         writeT(static_cast<uint8_t>(2), output); // compression method, always 2
         output.write((const char*)compressed.get(), compressed_size);
@@ -373,11 +370,16 @@ void ScriptSerializer::writeConstant(const CompiledCodeData& code, const ScriptC
         break;
     case ConstantType::array: {
         auto& array = std::get<ScriptConstantArray>(constant);
-        writeT<uint32_t>(array.content.size(), output);
+        if (static_cast<uint32_t>(array.content.size()) != array.content.size()) // truncation
+            __debugbreak();
+        writeT<uint32_t>(static_cast<uint32_t>(array.content.size()), output);
 
         for (auto& cnst : array.content)
             writeConstant(code, cnst, output);
     } break;
+    case ConstantType::nularCommand:
+        writeString(output, std::get<ScriptConstantNularCommand>(constant).commandName);
+        break;
     default: __debugbreak();
     }
 }
@@ -389,24 +391,19 @@ ScriptConstant ScriptSerializer::readConstant(CompiledCodeData& code, std::istre
     auto type = static_cast<ConstantType>(typeRaw);
 
     switch (type) {
-    case ConstantType::code: {
+        case ConstantType::code: {
             ScriptCodePiece piece;
             piece.contentString = readT<uint64_t>(input);
             piece.code = binaryToInstructions(code, input);
 
            return piece;
         } break;
-        case ConstantType::string: {
+        case ConstantType::string:
             return readString(input);
-        } break;
-        case ConstantType::scalar: {
-            auto data = readT<float>(input);
-            return data;
-        } break;
-        case ConstantType::boolean: {
-            auto data = readT<bool>(input);
-            return data;
-        } break;
+        case ConstantType::scalar: 
+            return readT<float>(input);
+        case ConstantType::boolean: 
+            return readT<bool>(input);
         case ConstantType::array: {
             auto size = readT<uint32_t>(input);
             ScriptConstantArray arr;
@@ -416,6 +413,8 @@ ScriptConstant ScriptSerializer::readConstant(CompiledCodeData& code, std::istre
             }
             return arr;
         } break;
+        case ConstantType::nularCommand: 
+            return ScriptConstantNularCommand(readString(input));
         default: __debugbreak();
     }
 

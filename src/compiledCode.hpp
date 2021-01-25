@@ -70,7 +70,8 @@ enum class ConstantType {
     string,
     scalar,
     boolean,
-    array
+    array,
+    nularCommand
 };
 
 struct ScriptCodePiece {
@@ -117,9 +118,17 @@ struct ScriptCodePiece {
 
 };
 
+struct ScriptConstantNularCommand {
+    STRINGTYPE commandName;
+    ScriptConstantNularCommand(STRINGTYPE command) : commandName(command) {
+        std::transform(commandName.begin(), commandName.end(), commandName.begin(), ::tolower);
+    }
+};
+
+
 struct ScriptConstantArray;
 
-using ScriptConstant = std::variant<ScriptCodePiece, STRINGTYPE, float, bool, ScriptConstantArray>;
+using ScriptConstant = std::variant<ScriptCodePiece, STRINGTYPE, float, bool, ScriptConstantArray, ScriptConstantNularCommand>;
 
 struct ScriptConstantArray {
     std::vector<ScriptConstant> content;
@@ -133,6 +142,7 @@ constexpr ConstantType getConstantType(const ScriptConstant& c) {
         case 2: return ConstantType::scalar;
         case 3: return ConstantType::boolean;
         case 4: return ConstantType::array;
+        case 5: return ConstantType::nularCommand;
     }
     __debugbreak();
 }
@@ -140,14 +150,13 @@ constexpr ConstantType getConstantType(const ScriptConstant& c) {
 
 inline bool operator==(const ScriptConstant& left, const ScriptConstant& right) {
     if (left.index() != right.index()) return false;
-
     switch (getConstantType(left)) {
-
         case ConstantType::code: return std::get<ScriptCodePiece>(left) == std::get<ScriptCodePiece>(right); break;
         case ConstantType::string: return std::get<STRINGTYPE>(left) == std::get<STRINGTYPE>(right);
         case ConstantType::scalar: return std::get<float>(left) == std::get<float>(right);
         case ConstantType::boolean: return std::get<bool>(left) == std::get<bool>(right);
         case ConstantType::array:return std::get<ScriptConstantArray>(left) == std::get<ScriptConstantArray>(right);
+        case ConstantType::nularCommand:return std::get<ScriptConstantNularCommand>(left).commandName == std::get<ScriptConstantNularCommand>(right).commandName;
     }
 
     return false;
