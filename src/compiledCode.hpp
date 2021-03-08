@@ -182,8 +182,20 @@ struct CompiledCodeData {
     std::vector<game_value> builtConstants;
 #endif
 
+    // temporary for serialization
+    mutable std::vector<STRINGTYPE> commandNameDirectory;
 
-   
+    uint16_t getIndexFromCommandNameDirectory(std::string_view text) const {
+ 
+        auto found = std::lower_bound(commandNameDirectory.begin(), commandNameDirectory.end(), text);
+        if (found == commandNameDirectory.end())
+        {
+            __debugbreak();
+        }
+
+        return std::distance(commandNameDirectory.begin(), found);
+    }
+
 
     uint64_t AddConstant(ScriptConstant&& constant) {
         auto found = std::find_if(std::execution::par_unseq, constants.begin(), constants.end(), [&constant](const ScriptConstant& cnst) {

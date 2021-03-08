@@ -1,6 +1,7 @@
 #include "scriptSerializer.hpp"
 #include <iostream>
 #define ZSTD_STATIC_LINKING_ONLY // ZSTD_findDecompressedSize
+#include <functional>
 #include <zstd.h>
 #include <sstream>
 
@@ -102,7 +103,8 @@ enum class SerializedBlockType {
     constantCompressed,
     locationInfo,
     code,
-    codeDebug
+    codeDebug,
+    commandNameDirectory // lookup table for script command/variable names. Optional
 };
 
 
@@ -126,6 +128,56 @@ void ScriptSerializer::compiledToBinary(const CompiledCodeData& code, std::ostre
     writeT<uint32_t>(code.version, output); //version
     output.flush();
 
+    // lookup table for script command/variable names. Optional, if code.commandNameDirectory is empty, script commands will be serialized as string names
+    {
+
+        std::set<STRINGTYPE> commandNameDirectory;
+        collectCommandNames(code, commandNameDirectory);
+
+        code.commandNameDirectory.clear();
+        std::copy(commandNameDirectory.begin(), commandNameDirectory.end(), std::back_inserter(code.commandNameDirectory));
+        std::sort(code.commandNameDirectory.begin(), code.commandNameDirectory.end());
+
+        if (code.commandNameDirectory.size() != static_cast<uint16_t>(code.commandNameDirectory.size())) {
+            __debugbreak();
+            // too big.
+            code.commandNameDirectory.clear();
+        }
+            
+
+
+        if (!code.commandNameDirectory.empty()) {
+            writeT(static_cast<uint8_t>(SerializedBlockType::commandNameDirectory), output);
+            
+            std::ostringstream buffer(std::ostringstream::binary);
+            writeT(static_cast<uint16_t>(code.commandNameDirectory.size()), buffer);
+            for (auto& it : code.commandNameDirectory)
+                writeString(buffer, it);
+
+
+
+
+            auto bufferContent = buffer.str();
+
+            lzokay::Dict<> dict;
+            std::size_t estimated_size = lzokay::compress_worst_size(bufferContent.size());
+            std::unique_ptr<uint8_t[]> compressed(new uint8_t[estimated_size]);
+            std::size_t compressed_size;
+            auto error = lzokay::compress((const uint8_t*)bufferContent.data(), bufferContent.size(), compressed.get(), estimated_size,
+                compressed_size, dict);
+            if (error < lzokay::EResult::Success)
+                __debugbreak();
+
+            writeT(static_cast<uint32_t>(bufferContent.size()), output); // uncompressed size
+            writeT(static_cast<uint8_t>(2), output); // compression method, always 2
+            output.write((const char*)compressed.get(), compressed_size);
+
+            output.flush();
+        }
+
+
+    }
+    
     if (true) {
         writeT(static_cast<uint8_t>(SerializedBlockType::constantCompressed), output);
 
@@ -145,15 +197,10 @@ void ScriptSerializer::compiledToBinary(const CompiledCodeData& code, std::ostre
         writeT(static_cast<uint32_t>(bufferContent.size()), output); // uncompressed size
         writeT(static_cast<uint8_t>(2), output); // compression method, always 2
         output.write((const char*)compressed.get(), compressed_size);
-
     } else {
         writeT(static_cast<uint8_t>(SerializedBlockType::constant), output);
         writeConstants(code, output);
     }
-
-
-
-
 
     output.flush();
 
@@ -278,7 +325,12 @@ void ScriptSerializer::instructionToBinary(const CompiledCodeData& code, const S
         case InstructionType::assignTo:
         case InstructionType::assignToLocal:
         case InstructionType::getVariable:
-            writeString(output, std::get<STRINGTYPE>(instruction.content));
+            if (code.commandNameDirectory.empty())
+                writeString(output, std::get<STRINGTYPE>(instruction.content));
+            else {
+                auto index = code.getIndexFromCommandNameDirectory(std::get<STRINGTYPE>(instruction.content));
+                writeT<uint16_t>(index, output);
+            }
             break;
         case InstructionType::makeArray: {
             auto constantIndex = std::get<uint64_t>(instruction.content);
@@ -329,7 +381,13 @@ ScriptInstruction ScriptSerializer::binaryToInstruction(const CompiledCodeData& 
         case InstructionType::assignTo:
         case InstructionType::assignToLocal:
         case InstructionType::getVariable: {
-            return ScriptInstruction{ type, offset, fileIndex, fileLine, readString(input) };
+            STRINGTYPE commandName;
+            if (code.commandNameDirectory.empty())
+                commandName = readString(input);
+            else
+                commandName = code.commandNameDirectory[readT<uint16_t>(input)];
+
+            return ScriptInstruction{ type, offset, fileIndex, fileLine, commandName };
         }
         case InstructionType::makeArray: {
             auto arraySize = readT<uint32_t>(input);
@@ -440,6 +498,54 @@ void ScriptSerializer::readConstants(CompiledCodeData& code, std::istream& input
     }
 
 }
+
+void ScriptSerializer::collectCommandNames(const CompiledCodeData& code, std::set<STRINGTYPE>& directory) {
+
+    std::function<void(const std::vector<ScriptConstant>&)> collectArray = [&directory, &collectArray](const std::vector<ScriptConstant>& content)
+    {
+        for (const auto& it : content) {
+            auto type = getConstantType(it);
+            if (type == ConstantType::code) {
+                const auto& instructions = std::get<ScriptCodePiece>(it);
+                collectCommandNames(instructions.code, directory);
+            }
+            if (type == ConstantType::array) {
+                auto& array = std::get<ScriptConstantArray>(it);
+                collectArray(array.content);
+            }
+        }
+    };
+
+    for (const auto& it : code.constants) {
+        auto type = getConstantType(it);
+        if (type == ConstantType::code) {
+            const auto& instructions = std::get<ScriptCodePiece>(it);
+            collectCommandNames(instructions.code, directory);
+        }
+        if (type == ConstantType::array) {
+            auto& array = std::get<ScriptConstantArray>(it);
+            collectArray(array.content);
+        }
+    }
+}
+
+void ScriptSerializer::collectCommandNames(const std::vector<ScriptInstruction>& instructions, std::set<std::string>& directory) {
+    for (const auto& it : instructions)
+        switch (it.type) {
+          case InstructionType::endStatement: break;
+          case InstructionType::push: break;
+          case InstructionType::makeArray: break;  
+          case InstructionType::callUnary:
+          case InstructionType::callBinary:
+          case InstructionType::callNular:
+          case InstructionType::assignTo:
+          case InstructionType::assignToLocal:
+          case InstructionType::getVariable:
+              directory.emplace(std::get<STRINGTYPE>(it.content));
+              break;
+        }
+}
+
 
 std::vector<char> ScriptSerializer::compressData(const std::vector<char>& data) {
     const size_t cBuffSize = ZSTD_compressBound(data.size());

@@ -1,4 +1,6 @@
 #pragma once
+#include <set>
+
 #include "compiledCode.hpp"
 
 class ScriptSerializer {
@@ -28,7 +30,8 @@ private:
     static void writeConstants(const CompiledCodeData& code, std::ostream& output);
     static void readConstants(CompiledCodeData& code, std::istream& input);
 
-
+    static void collectCommandNames(const CompiledCodeData& code, std::set<STRINGTYPE>& directory);
+    static void collectCommandNames(const std::vector<ScriptInstruction>& instructions, std::set<STRINGTYPE>& directory);
 
     static std::vector<char> compressData(const std::vector<char>& data);
     static std::vector<char> compressDataDictionary(const std::vector<char>& data, const std::vector<char>& dictionary);
