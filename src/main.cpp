@@ -15,9 +15,12 @@
 #include <queue>
 #include <base64.h>
 
+#include <nlohmann/json.hpp>
+
 std::queue<std::filesystem::path> tasks;
 std::mutex taskMutex;
 bool threadsShouldRun = true;
+std::filesystem::path outputDir;
 
 void compileRecursive(std::filesystem::path inputDir) {
 
@@ -50,7 +53,7 @@ void processFile(ScriptCompiler& comp, std::filesystem::path path) {
         auto pathRelative = path.lexically_relative(rootDir);
 
 
-        auto outputPath = "P:/" / pathRelative.parent_path() / (path.stem().string() + ".sqfc");
+        auto outputPath = outputDir / pathRelative.parent_path() / (path.stem().string() + ".sqfc");
 
         if (std::filesystem::exists(outputPath)) return;
 
@@ -95,38 +98,41 @@ void processFile(ScriptCompiler& comp, std::filesystem::path path) {
 }
 
 int main(int argc, char* argv[]) {
+    if (!std::filesystem::exists("sqfc.json")) {
+        std::cout << "Missing sqfc.json in current working directory" << "\n";
+        return 1;
+    }
 
+    std::ifstream inputFile("sqfc.json");
+    auto json = nlohmann::json::parse(inputFile);
 
-    //std::ifstream inputFile("I:/ACE3/addons/advanced_ballistics/functions/fnc_readWeaponDataFromConfig.sqf");
+    std::vector<std::string> checkConfigKeys = { "excludeList", "inputDirs", "includePaths", "outputDir", "workerThreads"};
+    for (std::string &key : checkConfigKeys) {
+        if (!json.contains(key)) {
+            std::cout << "Missing \"" << key << "\" in sqfc.json" << "\n";
+            return 1;
+        }
+    }
 
-    //ScriptCompiler compiler({ 
-    //    //static_cast<std::filesystem::path>("I:\\ACE3"),
-    //    //static_cast<std::filesystem::path>("I:\\CBA_A3"),
-    //    //static_cast<std::filesystem::path>("F:/Steam/SteamApps/common/Arma 3/Addons/ui_f"),
-    //    //static_cast<std::filesystem::path>("F:/Steam/SteamApps/common/Arma 3/Addons/functions_f"),
-    //    //static_cast<std::filesystem::path>("F:/Steam/SteamApps/common/Arma 3/Addons/editor_f")
-    //    static_cast<std::filesystem::path>("T:/")
-    //});
+    std::vector<std::string> excludeList = json["excludeList"].get<std::vector<std::string>>();
 
+    std::vector<std::filesystem::path> inputDirs;
+    for (std::string &inputDir : json["inputDirs"].get<std::vector<std::string>>()) {
+        inputDirs.push_back(std::filesystem::path(inputDir));
+    }
 
+    std::vector<std::filesystem::path> includePaths;
+    for (std::string &includePath : json["includePaths"].get<std::vector<std::string>>()) {
+        includePaths.push_back(std::filesystem::path(includePath));
+    }
 
-    // if file path contains this, skip it
-    std::vector<std::string> excludeList;
-    excludeList.push_back("missions_f_contact");
-    excludeList.push_back("missions_f_epa");
-    excludeList.push_back("missions_f_oldman");
-    excludeList.push_back("missions_f_tank");
-    excludeList.push_back("missions_f_beta");
-    excludeList.push_back("showcases\\showcase");
-    excludeList.push_back("\\unitplay\\");
-    excludeList.push_back("\\backups\\");
+    outputDir = std::filesystem::path(json["outputDir"].get<std::string>());
+    int numberOfWorkerThreads = json["workerThreads"].get<int>();
 
     std::mutex workWait;
     workWait.lock();
     auto workerFunc = [&]() {
-        ScriptCompiler compiler({ 
-            static_cast<std::filesystem::path>("T:/")
-        });
+        ScriptCompiler compiler(includePaths);
         workWait.lock();
         workWait.unlock();
 
@@ -153,40 +159,22 @@ int main(int argc, char* argv[]) {
 
     };
 
-    //compileRecursive("I:/ACE3/addons");
-    //compileRecursive("I:/CBA_A3/addons");
-    compileRecursive("T:/x/");
-    compileRecursive("T:/z/ace/");
-    compileRecursive("T:/z/acex/");
-    compileRecursive("T:/a3/");
-    //compileRecursive("P:/test/");
+    for (std::filesystem::path &inputDir : inputDirs) {
+        compileRecursive(inputDir);
+    }
 
-    
-    //compileRecursive("I:/CBA_A3/addons");
-    //compileRecursive("I:/ACE3/addons/nightvision");
-    //compileRecursive("I:/ACE3/addons/aircraft");
     workWait.unlock();
 
-
-
-
-    std::unique_ptr<std::thread> myThread = std::make_unique<std::thread>(workerFunc);
-    std::unique_ptr<std::thread> myThread2 = std::make_unique<std::thread>(workerFunc);
-    std::unique_ptr<std::thread> myThread3 = std::make_unique<std::thread>(workerFunc);
-    std::unique_ptr<std::thread> myThread4 = std::make_unique<std::thread>(workerFunc);
-    std::unique_ptr<std::thread> myThread5 = std::make_unique<std::thread>(workerFunc);
-    std::unique_ptr<std::thread> myThread6 = std::make_unique<std::thread>(workerFunc);
-    std::unique_ptr<std::thread> myThread7 = std::make_unique<std::thread>(workerFunc);
+    std::vector<std::thread> workerThreads;
+    for (int i = 0; i < numberOfWorkerThreads; i++) {
+        workerThreads.push_back(std::thread(workerFunc));
+    }
 
     workerFunc();
 
-    myThread->join();
-    myThread2->join();
-    myThread3->join();
-    myThread4->join();
-    myThread5->join();
-    myThread6->join();
-    myThread7->join();
+    for (std::thread &thread : workerThreads) {
+        thread.join();
+    }
 
     /*
     auto compiledScript = compiler.compileScript("I:/ACE3/addons/advanced_ballistics/functions/fnc_readWeaponDataFromConfig.sqf");
@@ -218,6 +206,5 @@ int main(int argc, char* argv[]) {
     hr2C.close();
     */
 
-
-    return 1;
+    return 0;
 }

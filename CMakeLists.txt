@@ -32,6 +32,7 @@ set(LIBRARY_PATH_ZSTD "${CMAKE_SOURCE_DIR}/lib/zstd")
 set(LIBRARY_PATH_SQFVM "${CMAKE_SOURCE_DIR}/lib/sqfvm")
 set(LIBRARY_PATH_B64  "${CMAKE_SOURCE_DIR}/lib/cpp-base64")
 set(LIBRARY_PATH_LZO  "${CMAKE_SOURCE_DIR}/lib/lzokay")
+set(LIBRARY_PATH_JSON "${CMAKE_SOURCE_DIR}/lib/json/single_include")
 
 add_definitions(/DNOMINMAX)
 add_definitions(/D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS) #No I don't cheat!
@@ -100,7 +101,7 @@ add_definitions(/DLOADFILE_CACHE) #SQF VM fileio.cpp cache
 
 add_executable("ArmaScriptCompiler" ${SOURCES_ASC} ${SOURCES_SQFVM} ${SOURCES_ASC_OPT} "${LIBRARY_PATH_LZO}/lzokay.cpp")
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INCLUDE_PATH_ZSTD} ${LIBRARY_PATH_B64} ${INCLUDE_PATH_SQFVM} ${LIBRARY_PATH_LZO}) # ${INCLUDE_PATH_ZSTD} ${INCLUDE_PATH_SQFVM}
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INCLUDE_PATH_ZSTD} ${LIBRARY_PATH_B64} ${INCLUDE_PATH_SQFVM} ${LIBRARY_PATH_LZO} ${LIBRARY_PATH_JSON}) # ${INCLUDE_PATH_ZSTD} ${INCLUDE_PATH_SQFVM}
 
 #target_link_libraries("ArmaScriptCompiler" ${CMAKE_THREAD_LIBS_INIT})
 

@@ -10,3 +10,6 @@
 [submodule "lib/lzokay"]
 	path = lib/lzokay
 	url = https://github.com/jackoalan/lzokay.git
+[submodule "lib/json"]
+	path = lib/json
+	url = https://github.com/nlohmann/json.git
