@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <algorithm>
+#include <thread>
 
 #include <iostream>
 
@@ -16,7 +17,7 @@
 #include <base64.h>
 
 #include <nlohmann/json.hpp>
-#include <src\luaHandler.hpp>
+#include <src/luaHandler.hpp>
 
 std::queue<std::filesystem::path> tasks;
 std::mutex taskMutex;

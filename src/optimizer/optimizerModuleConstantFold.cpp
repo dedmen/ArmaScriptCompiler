@@ -1,6 +1,11 @@
 #include "optimizerModuleConstantFold.hpp"
 #include <algorithm>
+#if defined(_MSC_VER)
 #include <intrin.h>
+#else
+#include <x86intrin.h>
+#endif
+#include <math.h>
 #include <sstream>
 #include <unordered_set>
 #include <iostream>

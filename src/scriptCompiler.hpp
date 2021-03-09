@@ -10,7 +10,7 @@
 #include <runtime/parser/preprocessor.h>
 #include <runtime/parser/sqf.h>
 #include <parser/sqf/sqf_parser.hpp>
-#include <src\optimizer\optimizerModuleLua.hpp>
+#include <src/optimizer/optimizerModuleLua.hpp>
 using astnode = sqf::parser::sqf::bison::astnode;
 
 class ScriptCompiler {
