@@ -256,18 +256,53 @@ OptimizerModuleBase::Node OptimizerModuleBase::nodeFromAST(const astnode& input)
 
             size_t lastToken = 0;
 
-            while (!statements->children.empty()) {
+            std::vector<std::vector<astnode>::const_iterator> lastChildren;
 
-                lastToken = (statements->children.end() - 1)->token.offset;
-                statements = (statements->children.end() - 1)._Ptr;
+            while (!statements->children.empty()) {
+                auto& lastChild = (statements->children.end() - 1);
+
+                lastToken = lastChild->token.offset + lastChild->token.contents.size();
+                statements = lastChild._Ptr;
+                lastChildren.emplace_back(lastChild);
             }
 
+            // we also need to travel the full way back. Just finding next } is not sufficient, we may be multiple code levels deep
+
+
             auto endData = input.token.contents.data() + (lastToken - input.token.offset);
+
+            std::reverse(lastChildren.begin(), lastChildren.end());
+
+            for (auto& it : lastChildren) {
+                switch (it->kind) {
+                    case sqf::parser::sqf::bison::astkind::CODE: 
+                        // find ending }
+                        while (*endData && *endData != '}') {
+                            ++endData;
+                            ++lastToken;
+                        }
+                        // after ending }
+                        ++endData; ++lastToken;
+                        break;
+                    case sqf::parser::sqf::bison::astkind::ARRAY: 
+                        // find ending ]
+                        while (*endData && *endData != ']') {
+                            ++endData;++lastToken;
+                        }
+                        // after ending ]
+                        ++endData; ++lastToken;
+                        break;
+                    default: ;
+                }
+            }
+
 
             while (*endData && *endData != '}') {
                 ++endData;
                 ++lastToken;
             }
+            // we stop BEFORE ending }, we only want the inner code.
+
             codeEnd = lastToken;
             newNode.value = ScriptCodePiece({}, codeEnd - input.token.offset - 1, input.token.offset + 1);//instructions are empty as they are in node children
         } else {
