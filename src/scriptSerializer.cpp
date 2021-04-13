@@ -371,7 +371,7 @@ ScriptInstruction ScriptSerializer::binaryToInstruction(const CompiledCodeData& 
         case InstructionType::endStatement: 
             return ScriptInstruction{ type, offset, fileIndex, fileLine, {} };
         case InstructionType::push: {
-            auto constIndex = readT<uint64_t>(input);
+            uint64_t constIndex = readT<uint16_t>(input);
 
             return ScriptInstruction{ type, offset, fileIndex, fileLine, constIndex };
         }
