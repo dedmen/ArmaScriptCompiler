@@ -390,7 +390,7 @@ ScriptInstruction ScriptSerializer::binaryToInstruction(const CompiledCodeData& 
             return ScriptInstruction{ type, offset, fileIndex, fileLine, commandName };
         }
         case InstructionType::makeArray: {
-            auto arraySize = readT<uint32_t>(input);
+            auto arraySize = readT<uint16_t>(input);
             return ScriptInstruction{ type, offset, fileIndex, fileLine, static_cast<uint64_t>(arraySize) };
         }
     }
