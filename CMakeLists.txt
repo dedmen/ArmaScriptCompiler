@@ -33,6 +33,7 @@ set(LIBRARY_PATH_SQFVM "${CMAKE_SOURCE_DIR}/lib/sqfvm")
 set(LIBRARY_PATH_B64  "${CMAKE_SOURCE_DIR}/lib/cpp-base64")
 set(LIBRARY_PATH_LZO  "${CMAKE_SOURCE_DIR}/lib/lzokay")
 set(LIBRARY_PATH_JSON "${CMAKE_SOURCE_DIR}/lib/json/single_include")
+set(LIBRARY_PATH_SOL2 "${CMAKE_SOURCE_DIR}/lib/sol2")
 
 add_definitions(/DNOMINMAX)
 add_definitions(/D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS) #No I don't cheat!
@@ -95,6 +96,10 @@ set(SQFVM_BUILD_EXECUTABLE_ARMA2_LOCALKEYWORD_FULL_DIAGNOSE OFF CACHE BOOL "no" 
 
 set(INCLUDE_PATH_SQFVM "${LIBRARY_PATH_SQFVM}/src")
 add_subdirectory(${LIBRARY_PATH_SQFVM})
+add_subdirectory(${LIBRARY_PATH_SOL2})
+
+set(LUA_BUILD_AS_CXX ON CACHE BOOL "yes" FORCE)
+add_subdirectory("lib/lua")
 add_definitions(/DLOADFILE_CACHE) #SQF VM fileio.cpp cache
 
 
@@ -105,10 +110,14 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INCLUDE_PATH_ZSTD} ${LIBRARY_P
 
 #target_link_libraries("ArmaScriptCompiler" ${CMAKE_THREAD_LIBS_INIT})
 
-target_link_libraries("ArmaScriptCompiler" slibsqfvm libzstd_static)
+target_link_libraries("ArmaScriptCompiler" slibsqfvm libzstd_static sol2 lua_static)
 
 set_target_properties("ArmaScriptCompiler" PROPERTIES PREFIX "")
 set_target_properties("ArmaScriptCompiler" PROPERTIES FOLDER ArmaScriptCompiler)
+
+
+
+target_compile_definitions("ArmaScriptCompiler" PUBLIC SOL_ALL_SAFETIES_ON=1 SOL_PRINT_ERRORS=1 SOL_USING_CXX_LUA=1)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
 	add_compile_definitions(__linux__)
@@ -150,6 +159,7 @@ else()
 		"$<$<CONFIG:Release>:/Ot>"
 		"$<$<CONFIG:Release>:/GL>"
 		"/F4194304" #Stack size
+		"/FS"
 	)
 	
 	target_compile_options(

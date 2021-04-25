@@ -15,9 +15,15 @@ using astnode = sqf::parser::sqf::bison::astnode;
 class ScriptCompiler {
 public:
     ScriptCompiler(const std::vector<std::filesystem::path>& includePaths);
+    ScriptCompiler();
 
 
     CompiledCodeData compileScript(std::filesystem::path physicalPath, std::filesystem::path virtualPath);
+    void initIncludePaths(const std::vector<std::filesystem::path>&);
+    void addMacro(sqf::runtime::parser::macro macro);
+    void addPragma(sqf::runtime::parser::pragma pragma);
+    std::string preprocessScript(std::filesystem::path physicalPath, std::filesystem::path virtualPath);
+
 private:
     struct CompileTempData {
         std::unordered_map<std::string, uint8_t> fileLoc;
@@ -28,10 +34,5 @@ private:
 
     ScriptConstantArray ASTParseArray(CompiledCodeData& output, CompileTempData& temp, const OptimizerModuleBase::Node& node) const;
     void ASTToInstructions(CompiledCodeData& output, CompileTempData& temp, std::vector<ScriptInstruction>& instructions, const OptimizerModuleBase::Node& node) const;
-    void initIncludePaths(const std::vector<std::filesystem::path>&) const;
-
-
-
-
     std::unique_ptr<sqf::runtime::runtime> vm;
 };

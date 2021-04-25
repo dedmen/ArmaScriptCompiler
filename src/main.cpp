@@ -16,6 +16,7 @@
 #include <base64.h>
 
 #include <nlohmann/json.hpp>
+#include <src\luaHandler.hpp>
 
 std::queue<std::filesystem::path> tasks;
 std::mutex taskMutex;
@@ -36,7 +37,7 @@ void compileRecursive(std::filesystem::path inputDir) {
         }
         if (!i->is_regular_file()) continue;
 
-        if (i->path().filename().extension() == ".sqf"sv) {
+        if (i->path().extension() == ".sqf"sv) {
             if (i->path().filename() == "fnc_zeusAttributes.sqf") continue; //Hard ignore for missing include file
             //if (i->path().filename() != "fnc_viewdir.sqf") continue;
             //if (i->path().filename() != "test.sqf") continue; //Hard ignore for missing include file
@@ -98,6 +99,16 @@ void processFile(ScriptCompiler& comp, std::filesystem::path path) {
 }
 
 int main(int argc, char* argv[]) {
+
+    if (std::filesystem::exists("sqfc.lua")) {
+        std::cout << "Using LUA for config" << "\n";
+
+        GLuaHandler.LoadFromFile("sqfc.lua");
+        return 0; //#TODO return real error state if any script failed
+    }
+
+
+
     if (!std::filesystem::exists("sqfc.json")) {
         std::cout << "Missing sqfc.json in current working directory" << "\n";
         return 1;
@@ -159,6 +170,14 @@ int main(int argc, char* argv[]) {
 
     };
 
+    //compileRecursive("I:/ACE3/addons");
+    //compileRecursive("I:/CBA_A3/addons");
+    //compileRecursive("T:/x/");
+    //compileRecursive("T:/z/ace/");
+    //compileRecursive("T:/z/acex/");
+    //compileRecursive("T:/a3");
+
+    //compileRecursive("P:/test/");
     for (std::filesystem::path &inputDir : inputDirs) {
         compileRecursive(inputDir);
     }
@@ -206,5 +225,5 @@ int main(int argc, char* argv[]) {
     hr2C.close();
     */
 
-    return 0;
+    return 0;  //#TODO return real error state if any script failed
 }

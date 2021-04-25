@@ -57,6 +57,19 @@ ScriptCompiler::ScriptCompiler(const std::vector<std::filesystem::path>& include
     initIncludePaths(includePaths);
 }
 
+ScriptCompiler::ScriptCompiler() {
+    vmlogger.setEnabled(loglevel::trace, false);
+    vm = std::make_unique<sqf::runtime::runtime>(vmlogger, sqf::runtime::runtime::runtime_conf{});
+
+    vm->fileio(std::make_unique<sqf::fileio::impl_default>(vmlogger));
+    vm->parser_config(std::make_unique<sqf::parser::config::parser>(vmlogger));
+    vm->parser_preprocessor(std::make_unique<sqf::parser::preprocessor::impl_default>(vmlogger));
+    vm->parser_sqf(std::make_unique<sqf::parser::sqf::parser>(vmlogger));
+
+    CommandList::init(*vm);
+
+}
+
 CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path physicalPath, std::filesystem::path virtualPath) {
     std::ifstream inputFile(physicalPath);
     
@@ -540,7 +553,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
     }
 }
 
-void ScriptCompiler::initIncludePaths(const std::vector<std::filesystem::path>& paths) const {
+void ScriptCompiler::initIncludePaths(const std::vector<std::filesystem::path>& paths) {
     for (auto& includefolder : paths) {
 
         if (includefolder.string().length() == 3 && includefolder.string().substr(1) == ":/") {
@@ -574,4 +587,50 @@ void ScriptCompiler::initIncludePaths(const std::vector<std::filesystem::path>& 
 
        
     }
+}
+
+void ScriptCompiler::addMacro(sqf::runtime::parser::macro macro) {
+    vm->parser_preprocessor().push_back(macro);
+}
+
+void ScriptCompiler::addPragma(sqf::runtime::parser::pragma pragma) {
+    vm->parser_preprocessor().push_back(pragma);
+}
+
+std::string ScriptCompiler::preprocessScript(std::filesystem::path physicalPath, std::filesystem::path virtualPath) {
+    std::ifstream inputFile(physicalPath);
+
+    auto filesize = std::filesystem::file_size(physicalPath);
+    if (filesize == 0) // uh. oki
+        return "";
+
+    std::string scriptCode;
+    scriptCode.resize(filesize);
+    inputFile.read(scriptCode.data(), filesize);
+
+    if (
+        static_cast<unsigned char>(scriptCode[0]) == 0xef &&
+        static_cast<unsigned char>(scriptCode[1]) == 0xbb &&
+        static_cast<unsigned char>(scriptCode[2]) == 0xbf
+        ) {
+        scriptCode.erase(0, 3);
+    }
+
+    // #OPTION force all script files to contain a include
+    //if (scriptCode.find("script_component.hpp\"") == std::string::npos) {
+    //    throw std::domain_error("no include");
+    //}
+    try {
+        auto preprocessedScript = vm->parser_preprocessor().preprocess(*vm, scriptCode, sqf::runtime::fileio::pathinfo(physicalPath.string(), virtualPath.string()));
+        if (!preprocessedScript) {
+            //__debugbreak();
+            return "";
+        }
+
+        return std::string(preprocessedScript->begin(), preprocessedScript->end());
+    } catch (std::exception ex) {
+        __debugbreak();
+    }
+
+    return "";
 }
