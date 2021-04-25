@@ -11,7 +11,7 @@
 
 #include "fileio/default.h"
 #include "operators/ops.h"
-#include "parser/config/default.h"
+#include "parser/config/config_parser.hpp"
 #include "parser/preprocessor/default.h"
 #include "parser/sqf/parser.tab.hh"
 #include "runtime/d_string.h"
@@ -39,7 +39,7 @@ ScriptCompiler::ScriptCompiler(const std::vector<std::filesystem::path>& include
     vm = std::make_unique<sqf::runtime::runtime>(vmlogger, sqf::runtime::runtime::runtime_conf{});
 
     vm->fileio(std::make_unique<sqf::fileio::impl_default>(vmlogger));
-    vm->parser_config(std::make_unique<sqf::parser::config::impl_default>(vmlogger));
+    vm->parser_config(std::make_unique<sqf::parser::config::parser>(vmlogger));
     vm->parser_preprocessor(std::make_unique<sqf::parser::preprocessor::impl_default>(vmlogger));
     vm->parser_sqf(std::make_unique<sqf::parser::sqf::parser>(vmlogger));
 
