@@ -5,8 +5,8 @@
 
 
 #include "scriptCompiler.hpp"
-#include "sol/sol.hpp"
 
+#include "sol/sol.hpp"
 extern std::queue<std::filesystem::path> tasks;
 extern void processFile(ScriptCompiler& comp, std::filesystem::path path);
 extern std::filesystem::path outputDir;
@@ -335,17 +335,29 @@ LuaHandler::LuaHandler() {
         "file_offset", sol::readonly(&sqf::runtime::diagnostics::diag_info::file_offset)
     );
 
-    
+    lua.new_usertype<OptimizerModuleBase::Node>(
+        "OptimizerNode", sol::no_constructor,
+        "type", sol::var(&OptimizerModuleBase::Node::type),
+        "file", sol::var(&OptimizerModuleBase::Node::file),
+        "line", sol::var(&OptimizerModuleBase::Node::line),
+        "offset", sol::var(&OptimizerModuleBase::Node::offset),
+        "children", sol::var(&OptimizerModuleBase::Node::children),
+        "constant", sol::var(&OptimizerModuleBase::Node::constant),
+        "areChildrenConstant", &OptimizerModuleBase::Node::areChildrenConstant
+    );
 
-
-
-
-
-
-
-
-
-
+    lua.new_enum("InstructionType"
+        "OptimizerNode", sol::no_constructor,
+        "endStatement", InstructionType::endStatement,
+        "push", InstructionType::push,
+        "callUnary", InstructionType::callUnary,
+        "callBinary", InstructionType::callBinary,
+        "callNular", InstructionType::callNular,
+        "assignTo", InstructionType::assignTo,
+        "assignToLocal", InstructionType::assignToLocal,
+        "getVariable", InstructionType::getVariable,
+        "makeArray" , InstructionType::makeArray
+    );
 
     lua["ASC"] = LuaASC{};
 }
@@ -356,14 +368,6 @@ void LuaHandler::LoadFromFile(std::filesystem::path filePath) {
     lua.safe_script_file(filePath.string());
 }
 
-
-void LuaHandler::ScanFiles() {
-
-    auto fx = lua.get<sol::function>("ScanFiles");
-    if (fx.valid())
-        fx();
-
-}
 
 void LuaHandler::SetupCompiler(ScriptCompiler& compiler) {
     if (!isActive)
