@@ -127,6 +127,12 @@ int main(int argc, char* argv[]) {
 
     std::vector<std::string> excludeList = json["excludeList"].get<std::vector<std::string>>();
 
+    std::transform(excludeList.begin(), excludeList.end(), excludeList.begin(), [](std::string inp) {
+        std::transform(inp.begin(), inp.end(), inp.begin(), ::tolower);
+        return inp;
+    });
+
+
     std::vector<std::filesystem::path> inputDirs;
     for (std::string &inputDir : json["inputDirs"].get<std::vector<std::string>>()) {
         inputDirs.push_back(std::filesystem::path(inputDir));
