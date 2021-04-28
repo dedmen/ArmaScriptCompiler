@@ -1,3 +1,4 @@
+---@diagnostic disable: lowercase-global
 local inspect = require 'inspect' -- https://github.com/kikito/inspect.lua
 print("Config loading")
 
@@ -95,7 +96,72 @@ compiler:AddMacro(Macro.new("MY_MACRO_CUSTOM_ARGS", {"arg1", "arg2"},
     end
 ));
 
-print("Preprocessed Script: \n", compiler:PreprocessFile(path.new("P:/test/test.sqf")));
+print("Preprocessed Script: \n", compiler:PreprocessFile(path.new("P:/test.sqf")));
 
 
+function optimizerNodeHandler(node)
+
+
+    print("node meta:", inspect(getmetatable(node)))
+    print("node:", inspect(node))
+    print("nodef:", node.file)
+    print("nodel:", node.line)
+    print("nodet:", node.type)
+    print("nodec:", node.constant)
+    print("nodev:", node.value)
+
+    if node.type == InstructionType.callUnary and node:areChildrenConstant() and node.value=="params" then
+        print("Params!")
+        -- We are calling params script command and the array argument consists of only constants, we can safely optimize the array to a push instruction
+       
+        function resolveMakeArray(node)
+            print("resolve", node.type)
+            if (node.type ~= InstructionType.makeArray) then return end
+            
+            for i,v in ipairs(node.children) do 
+                resolveMakeArray(v)
+            end
+            node.value = ScriptConstantArray.new(); --dummy. Children are the contents
+            node.type = InstructionType.push;
+        end
+
+
+        print("preresolve", #node.children, resolveMakeArray)
+        resolveMakeArray(node.children[1])
+
+        --#TODO verify again that they are all push or makeArray instructions
+
+        node.children[1].value = ScriptConstantArray.new() --dummy. Children are the contents
+        node.children[1].type = InstructionType.push
+        print("Params optimized!")
+    end
+
+
+    -- We need to figure out what things we consider as constants
+    -- Push and end statement are always constants
+    if node.type == InstructionType.push or node.type == InstructionType.endStatement then
+        node.constant = true
+    end
+
+
+    function isArrayConst(node)
+        for i,v in ipairs(node.children) do 
+            if not v.constant or v.type ~= InstructionType.push then
+                return false
+            end
+        end
+        return true
+    end
+
+    -- makeArray is only const if all children are makeArray or push
+    if node.type == InstructionType.makeArray then
+        node.constant = isArrayConst(node);
+    end
+
+end
+
+local optimizer = OptimizerModuleLua.new(optimizerNodeHandler)
+
+
+compiler:CompileScriptToFile(path.new("P:/test.sqf"), path.new("P:/test.asm"), optimizer)
 

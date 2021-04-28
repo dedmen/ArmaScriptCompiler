@@ -48,14 +48,14 @@ public:
     class Node {
     public:
         Node() {}
-        Node(Node&& mv) noexcept {
-            type = mv.type;
-            file = std::move(mv.file);
-            line = mv.line;
-            offset = mv.offset;
-            value = std::move(mv.value);
-            children = std::move(mv.children);
-        }
+        //Node(Node&& mv) noexcept {
+        //    type = mv.type;
+        //    file = std::move(mv.file);
+        //    line = mv.line;
+        //    offset = mv.offset;
+        //    value = std::move(mv.value);
+        //    children = std::move(mv.children);
+        //}
 
         InstructionType type;
       

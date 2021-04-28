@@ -10,6 +10,7 @@
 #include <runtime/parser/preprocessor.h>
 #include <runtime/parser/sqf.h>
 #include <parser/sqf/sqf_parser.hpp>
+#include <src\optimizer\optimizerModuleLua.hpp>
 using astnode = sqf::parser::sqf::bison::astnode;
 
 class ScriptCompiler {
@@ -19,6 +20,8 @@ public:
 
 
     CompiledCodeData compileScript(std::filesystem::path physicalPath, std::filesystem::path virtualPath);
+
+    CompiledCodeData compileScriptLua(std::filesystem::path physicalPath, std::filesystem::path virtualPath, OptimizerModuleLua& optimizer, const std::filesystem::path& outputFile);
     void initIncludePaths(const std::vector<std::filesystem::path>&);
     void addMacro(sqf::runtime::parser::macro macro);
     void addPragma(sqf::runtime::parser::pragma pragma);

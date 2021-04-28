@@ -313,6 +313,8 @@ void OptimizerModuleConstantFold::processNode(Node& node) {
         case InstructionType::makeArray: {
            
             if (node.areChildrenConstant()) {//#TODO when converting to ASM check again if all elements are push
+
+                //#TODO they could also be nested arrays, so makeArray with constants in it
                 bool allPush = std::all_of(node.children.begin(), node.children.end(), [](const Node & it)
                     {
                         return it.type == InstructionType::push;

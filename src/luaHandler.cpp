@@ -45,6 +45,12 @@ namespace sol {
 
     template <>
     struct is_automagical<std::filesystem::path> : std::false_type {};
+
+    template <>
+    struct is_automagical<OptimizerModuleLua> : std::false_type {};
+
+    template <>
+    struct is_automagical<OptimizerModuleBase::Node> : std::false_type {};
 }
 
 
@@ -237,10 +243,24 @@ LuaHandler::LuaHandler() {
 
             auto result = comp.preprocessScript(path.generic_string(), ("\\" / pathRelative).generic_string());
             return result;
-        }
+        },
 
+        "CompileScriptToFile", [](ScriptCompiler& comp, const std::filesystem::path& path, const std::filesystem::path& outputFile, OptimizerModuleLua& luaOptimizer) {
+            auto rootDir = path.root_path();
+            auto pathRelative = path.lexically_relative(rootDir);
+
+            comp.compileScriptLua(path.generic_string(), ("\\" / pathRelative).generic_string(), luaOptimizer, outputFile);
+        }
     );
 
+    lua.new_usertype<OptimizerModuleLua>(
+        "OptimizerModuleLua", sol::no_constructor,
+        "new", [](sol::protected_function func) {
+            OptimizerModuleLua opt;
+            opt.nodeHandler = func;
+            return opt;
+        }
+    );
 
 
     lua.new_usertype<sqf::runtime::parser::macro>(
@@ -337,17 +357,17 @@ LuaHandler::LuaHandler() {
 
     lua.new_usertype<OptimizerModuleBase::Node>(
         "OptimizerNode", sol::no_constructor,
-        "type", sol::var(&OptimizerModuleBase::Node::type),
-        "file", sol::var(&OptimizerModuleBase::Node::file),
-        "line", sol::var(&OptimizerModuleBase::Node::line),
-        "offset", sol::var(&OptimizerModuleBase::Node::offset),
-        "children", sol::var(&OptimizerModuleBase::Node::children),
-        "constant", sol::var(&OptimizerModuleBase::Node::constant),
+        "type", &OptimizerModuleBase::Node::type,
+        "file", &OptimizerModuleBase::Node::file,
+        "line", &OptimizerModuleBase::Node::line,
+        "offset", &OptimizerModuleBase::Node::offset,
+        "children", &OptimizerModuleBase::Node::children,
+        "constant", &OptimizerModuleBase::Node::constant,
+        "value", &OptimizerModuleBase::Node::value,
         "areChildrenConstant", &OptimizerModuleBase::Node::areChildrenConstant
     );
 
-    lua.new_enum("InstructionType"
-        "OptimizerNode", sol::no_constructor,
+    lua.new_enum("InstructionType",
         "endStatement", InstructionType::endStatement,
         "push", InstructionType::push,
         "callUnary", InstructionType::callUnary,
@@ -358,6 +378,11 @@ LuaHandler::LuaHandler() {
         "getVariable", InstructionType::getVariable,
         "makeArray" , InstructionType::makeArray
     );
+
+    lua.new_usertype<ScriptConstantArray>(
+        "ScriptConstantArray", sol::default_constructor
+    );
+    
 
     lua["ASC"] = LuaASC{};
 }

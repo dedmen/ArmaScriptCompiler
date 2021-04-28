@@ -553,6 +553,70 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
     }
 }
 
+CompiledCodeData ScriptCompiler::compileScriptLua(std::filesystem::path physicalPath, std::filesystem::path virtualPath, OptimizerModuleLua& optimizer, const std::filesystem::path& outputFile)
+{
+    std::ifstream inputFile(physicalPath);
+
+    auto filesize = std::filesystem::file_size(physicalPath);
+    if (filesize == 0) // uh. oki
+        return CompiledCodeData();
+
+    std::string scriptCode;
+    scriptCode.resize(filesize);
+    inputFile.read(scriptCode.data(), filesize);
+
+    if (
+        static_cast<unsigned char>(scriptCode[0]) == 0xef &&
+        static_cast<unsigned char>(scriptCode[1]) == 0xbb &&
+        static_cast<unsigned char>(scriptCode[2]) == 0xbf
+        ) {
+        scriptCode.erase(0, 3);
+    }
+
+    auto preprocessedScript = vm->parser_preprocessor().preprocess(*vm, scriptCode, sqf::runtime::fileio::pathinfo(physicalPath.string(), virtualPath.string()));
+    if (!preprocessedScript) {
+        //__debugbreak();
+        return CompiledCodeData();
+    }
+    bool errorflag = false;
+
+
+    sqf::parser::sqf::parser sqfParser(vmlogger);
+    sqf::parser::sqf::bison::astnode ast;
+    sqf::parser::sqf::tokenizer tokenizer(preprocessedScript->begin(), preprocessedScript->end(), virtualPath.string());
+    auto errflag = !sqfParser.get_tree(*vm, tokenizer, &ast);
+    if (errflag || ast.children.empty()) {
+        //__debugbreak();
+        return CompiledCodeData();
+    }
+
+    //print_navigate_ast(&std::cout, ast, sqf::parse::sqf::astkindname);
+
+    CompiledCodeData stuff;
+    CompileTempData temp;
+    ScriptCodePiece mainCode;
+
+
+    auto& statementsNode = ast.children[0];
+    if (statementsNode.kind != sqf::parser::sqf::bison::astkind::STATEMENTS)
+        __debugbreak();
+
+    auto node = OptimizerModuleBase::nodeFromAST(statementsNode);
+
+    Optimizer opt;
+    optimizer.optimizeLua(node);
+
+    ASTToInstructions(stuff, temp, mainCode.code, node);
+    mainCode.contentString = stuff.AddConstant(std::move(*preprocessedScript));
+    stuff.codeIndex = stuff.AddConstant(std::move(mainCode));
+
+    std::ofstream output2(outputFile, std::ofstream::binary);
+    ScriptSerializer::compiledToHumanReadable(stuff, output2);
+    output2.flush();
+
+    return stuff;
+}
+
 void ScriptCompiler::initIncludePaths(const std::vector<std::filesystem::path>& paths) {
     for (auto& includefolder : paths) {
 

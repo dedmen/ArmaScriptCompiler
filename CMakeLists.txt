@@ -160,6 +160,7 @@ else()
 		"$<$<CONFIG:Release>:/GL>"
 		"/F4194304" #Stack size
 		"/FS"
+		"/bigobj"
 	)
 	
 	target_compile_options(

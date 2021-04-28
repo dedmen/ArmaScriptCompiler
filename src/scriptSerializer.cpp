@@ -37,11 +37,12 @@ void blaBLaConstant(const CompiledCodeData& code, const ScriptConstant& constant
         break;
     case ConstantType::array:
         if (!inArray)
-            output << "push ARRAY [\n";
+            output << "push ARRAY [";
         else
             output << "[\n";
         for (auto& it : std::get<4>(constant).content)
             blaBLaConstant(code, it, output, true);
+        output.seekp(-2, SEEK_CUR);
         output << "]\n";
         break;
     default:;
