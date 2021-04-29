@@ -149,6 +149,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 	target_link_libraries("ArmaScriptCompiler" "libstdc++.a")
 
 else()
+	target_compile_options(lua_static PRIVATE "$<$<CONFIG:Release>:/MT>")
 	target_compile_options(
 		"ArmaScriptCompiler" PRIVATE 
 		"/MP" "/Zi"
