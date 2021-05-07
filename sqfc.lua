@@ -96,7 +96,7 @@ compiler:AddMacro(Macro.new("MY_MACRO_CUSTOM_ARGS", {"arg1", "arg2"},
     end
 ));
 
-print("Preprocessed Script: \n", compiler:PreprocessFile(path.new("P:/test.sqf")));
+-- print("Preprocessed Script: \n", compiler:PreprocessFile(path.new("P:\\test.sqf")));
 
 
 function optimizerNodeHandler(node)
@@ -163,5 +163,6 @@ end
 local optimizer = OptimizerModuleLua.new(optimizerNodeHandler)
 
 
-compiler:CompileScriptToFile(path.new("P:/test.sqf"), path.new("P:/test.asm"), optimizer)
+--compiler:CompileScriptToFile(path.new("P:\\test.sqf"), path.new("P:/test.asm"), optimizer)
+compiler:CompileScriptToFile(path.new("T:\\z\\ace\\addons\\common\\functions\\fnc_cbaSettings_loadFromConfig.sqf"), path.new("P:/test.asm"), optimizer)
 

@@ -219,7 +219,13 @@ LuaHandler::LuaHandler() {
     
 
     lua.new_usertype<ScriptCompiler>(
-        "ScriptCompiler", sol::default_constructor,
+        "ScriptCompiler", sol::no_constructor,
+        "new", []()
+        {
+            ScriptCompiler compiler;
+            GLuaHandler.SetupCompiler(compiler);
+            return compiler;
+        },
 
         "InitIncludePaths", [](ScriptCompiler& comp, sol::table paths)
         {
