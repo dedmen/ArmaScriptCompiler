@@ -99,7 +99,20 @@ OptimizerModuleBase::Node OptimizerModuleBase::nodeFromAST(const astnode& input)
     auto nodeType = input.kind;
     switch (nodeType) {
 
-    case sqf::parser::sqf::bison::astkind::ASSIGNMENT:
+    case sqf::parser::sqf::bison::astkind::ASSIGNMENT: {
+        Node newNode;
+
+        newNode.type = nodeType == sqf::parser::sqf::bison::astkind::ASSIGNMENT ? InstructionType::assignTo : InstructionType::assignToLocal;
+        newNode.file = *input.token.path;
+        newNode.line = input.token.line;
+        newNode.offset = input.token.offset;
+        auto varname = std::string(input.children[0].token.contents);
+        std::transform(varname.begin(), varname.end(), varname.begin(), ::tolower);
+        newNode.value = std::string(varname);
+
+        newNode.children.emplace_back(nodeFromAST(input.children[1]));
+        return newNode;
+    }
     case sqf::parser::sqf::bison::astkind::ASSIGNMENT_LOCAL: {
         Node newNode;
 

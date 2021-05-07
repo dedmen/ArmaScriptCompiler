@@ -186,7 +186,18 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
     auto nodeType = node.kind;
     switch (nodeType) {
 
-    case sqf::parser::sqf::bison::astkind::ASSIGNMENT:
+    case sqf::parser::sqf::bison::astkind::ASSIGNMENT: {
+        auto varname = std::string(node.children[0].token.contents);
+        //need value on stack first
+        ASTToInstructions(output, temp, instructions, node.children[1]);
+        std::transform(varname.begin(), varname.end(), varname.begin(), ::tolower);
+        instructions.emplace_back(ScriptInstruction{
+            nodeType == sqf::parser::sqf::bison::astkind::ASSIGNMENT ?
+            InstructionType::assignTo
+            :
+            InstructionType::assignToLocal
+            , node.token.offset, getFileIndex(*node.token.path), node.token.line, varname });
+    } break;
     case sqf::parser::sqf::bison::astkind::ASSIGNMENT_LOCAL: {
         auto varname = std::string(node.token.contents);
         //need value on stack first
@@ -198,8 +209,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
             :
             InstructionType::assignToLocal
             , node.token.offset, getFileIndex(*node.token.path), node.token.line, varname });
-    }
-                                                        break;
+    } break;
     case sqf::parser::sqf::bison::astkind::EXP0:
     case sqf::parser::sqf::bison::astkind::EXP1:
     case sqf::parser::sqf::bison::astkind::EXP2:
