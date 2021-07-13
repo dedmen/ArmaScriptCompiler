@@ -3,6 +3,7 @@
 #include <intrin.h>
 #include <sstream>
 #include <unordered_set>
+#include <iostream>
 
 constexpr auto NularPushConstNularCommand(std::string_view name) {
     return [name](OptimizerModuleBase::Node& node) -> void {
@@ -15,7 +16,7 @@ constexpr auto NularPushConstNularCommand(std::string_view name) {
     };
 }
 
-
+#define ONLY_PUSH_BINARY if (node.children[0].type != InstructionType::push || node.children[1].type != InstructionType::push) return
 
 class OptimizerConstantFoldActionMap : public Singleton<OptimizerConstantFoldActionMap> {
 public:
@@ -62,6 +63,7 @@ private:
 
 
         //binaryActions["+"] = [](OptimizerModuleBase::Node & node) -> void { //#TODO array
+        //    ONLY_PUSH_BINARY;
         //    if (node.children[0].value.index() == 1) { //string
         //        auto leftArg = std::get<STRINGTYPE>(node.children[0].value);
         //        auto rightArg = std::get<STRINGTYPE>(node.children[1].value);
@@ -81,9 +83,11 @@ private:
         //};
 
         binaryActions["-"] = [](OptimizerModuleBase::Node & node) -> void {
+            ONLY_PUSH_BINARY;
 
             auto type = getConstantType(node.children[0].value);
 
+            //#TODO fix array, this is safe if both are const, see params need to convert arrays to constants and merge
             if (type == ConstantType::array) { //array
                 //std::unordered_set<STRINGTYPE> vals;
                 //
@@ -109,12 +113,19 @@ private:
                 float rightArg = std::get<float>(node.children[1].value);
                 node.value = leftArg - rightArg;
             }
+            else
+            {
+                std::cout << "Something is very wrong, tried to optimize operator '-' but argument type is neither array nor number?! Breaking into debugger now." << std::endl;
+                __debugbreak();
+
+            }
             node.type = InstructionType::push;
             node.children.clear();
             node.constant = true;
         };
 
         binaryActions["/"] = [](OptimizerModuleBase::Node & node) -> void {
+            ONLY_PUSH_BINARY;
             auto type = getConstantType(node.children[0].value);
             if (type != ConstantType::scalar)
                 return;
@@ -128,6 +139,7 @@ private:
             node.value = leftArg / rightArg;
         };
         binaryActions["*"] = [](OptimizerModuleBase::Node & node) -> void {
+            ONLY_PUSH_BINARY;
             auto type = getConstantType(node.children[0].value);
             if (type != ConstantType::scalar)
                 return;
@@ -142,6 +154,7 @@ private:
         };
 
         binaryActions["mod"] = [](OptimizerModuleBase::Node & node) -> void {
+            ONLY_PUSH_BINARY;
             auto type = getConstantType(node.children[0].value);
             if (type != ConstantType::scalar)
                 return;
