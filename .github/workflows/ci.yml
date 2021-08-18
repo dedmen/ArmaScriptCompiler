@@ -3,7 +3,22 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  windows:
+  test-configs:
+    name: Archive test configs
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v2
+
+      - name: Archive test configs
+        uses: actions/upload-artifact@v2
+        with:
+          name: test configs
+          path: test/*.json
+          if-no-files-found: error
+
+  windows-build:
+    name: Windows build
     runs-on: windows-2019
     steps:
       - name: Git checkout
@@ -19,3 +34,76 @@ jobs:
         with:
           name: Windows x64
           path: Release
+          if-no-files-found: error
+
+  windows-test-ace3:
+    name: Windows test ACE3
+    runs-on: windows-2019
+    needs:
+      - test-configs
+      - windows-build
+    steps:
+      - name: Git checkout ACE3
+        uses: actions/checkout@v2
+        with:
+          repository: acemod/ACE3
+          path: z/ace
+
+      - name: Git checkout CBA A3
+        uses: actions/checkout@v2
+        with:
+          repository: CBATeam/CBA_A3
+          path: x/cba
+
+      - name: Download test configs
+        uses: actions/download-artifact@v2
+        with:
+          name: test configs
+
+      - name: Download ArmaScriptCompiler artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: Windows x64
+
+      - name: Setup build folder
+        run: |
+          xcopy z\ace\include\a3 a3 /s /e /h /i
+          copy ace3.json sqfc.json
+
+      - name: Compile ACE3
+        run: |
+          subst P: .
+          Release\ArmaScriptCompiler.exe
+
+  windows-test-cba-a3:
+    name: Windows test CBA A3
+    runs-on: windows-2019
+    needs:
+      - test-configs
+      - windows-build
+    steps:
+      - name: Git checkout CBA A3
+        uses: actions/checkout@v2
+        with:
+          repository: CBATeam/CBA_A3
+          path: x/cba
+
+      - name: Download test configs
+        uses: actions/download-artifact@v2
+        with:
+          name: test configs
+
+      - name: Download ArmaScriptCompiler artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: Windows x64
+
+      - name: Setup build folder
+        run: |
+          xcopy x\cba\include\a3 a3 /s /e /h /i
+          copy cba_a3.json sqfc.json
+
+      - name: Compile CBA A3
+        run: |
+          subst P: .
+          Release\ArmaScriptCompiler.exe
