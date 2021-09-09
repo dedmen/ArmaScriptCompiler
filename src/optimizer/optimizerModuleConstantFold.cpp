@@ -228,9 +228,57 @@ private:
 
                 node.children[0].value = ScriptConstantArray(); //dummy. Children are the contents
                 node.children[0].type = InstructionType::push;
+
+
+                // check if params array contains a value that can be modified by reference, to prevent it modifying the value in compiled code
+
+                const auto& paramsList = node.children[0].children;
+
+                for (auto& it : paramsList)
+                {
+                    //#TODO throw warning on empty array passed to params?
+                    if (!it.children.empty() && std::holds_alternative<ScriptConstantArray>(it.value)) // is array, and is not empty
+                    {
+                        // it is a [name, default, allowedTypes] array
+                        auto& paramArguments = it.children;
+
+                        if (paramArguments.size() < 2) // only [name], no defaults, don't care
+                            continue;
+
+                        if (std::holds_alternative<ScriptConstantArray>(paramArguments[1].value))
+                        {
+                            // !!! [name, []] the array will be passed down by ref if parameter is not provided, and cause changes to propagate/persist to compiled code if modified by reference
+                            // We know that this will be a problem, lets insert a array copy
+
+                            // replace ourselves with a + unary
+
+                            // move our array out so we can move it over instead of copying
+                            auto myArgumentsArray = std::move(node.children[0]);
+                            // our only child is now default initialized, we have no children
+                            node.children.clear();
+
+                            // convert ourselves to a unary + and add the array as argument
+                            OptimizerModuleBase::Node copyNode;
+                            copyNode.type = InstructionType::callUnary;
+                            copyNode.constant = false; // Lets prevent optimizing this copy out, shouldn't be done anyway but better be safe
+                            copyNode.value = STRINGTYPE("+"); // value is name of command
+                            copyNode.file = node.file;
+                            copyNode.line = myArgumentsArray.line;
+                            copyNode.offset = myArgumentsArray.offset;
+                            copyNode.children.emplace_back(std::move(myArgumentsArray)); // Add the arguments array back
+
+                            node.children.emplace_back(std::move(copyNode));
+
+                            // now changed params [...] to params +[...]
+                            break; // paramsList has been invalidated, cannot keep iterating
+                        }
+                    }
+                }
+
             }
         };
 
+        //#TODO optimize param too, if non-array constant default value, see params array checking
 
 
     }

@@ -89,6 +89,15 @@ void blaBla(const CompiledCodeData& code, const std::vector<ScriptInstruction>& 
 
 
 void ScriptSerializer::compiledToHumanReadable(const CompiledCodeData& code, std::ostream& output) {
+
+    //#TODO fix this
+    //Check output of
+    // params ["_unit", "_pos", ["_target", objNull], ["_buildings", []]];
+    // + [1, 2, 3];
+    // _buildings pushBack[1, 2, 3];
+
+    // array fuckup, no quotes on string constants inside the array
+
     blaBla(code, std::get<0>(code.constants[code.codeIndex]).code, output);
 }
 
