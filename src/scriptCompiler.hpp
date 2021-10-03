@@ -14,6 +14,7 @@
 using astnode = sqf::parser::sqf::bison::astnode;
 
 class ScriptCompiler {
+    void init();
 public:
     ScriptCompiler(const std::vector<std::filesystem::path>& includePaths);
     ScriptCompiler();
@@ -38,4 +39,5 @@ private:
     ScriptConstantArray ASTParseArray(CompiledCodeData& output, CompileTempData& temp, const OptimizerModuleBase::Node& node) const;
     void ASTToInstructions(CompiledCodeData& output, CompileTempData& temp, std::vector<ScriptInstruction>& instructions, const OptimizerModuleBase::Node& node) const;
     std::unique_ptr<sqf::runtime::runtime> vm;
+    bool ignoreCurrentFile = false;
 };

@@ -34,7 +34,8 @@ public:
 
 static MyLogger vmlogger;
 
-ScriptCompiler::ScriptCompiler(const std::vector<std::filesystem::path>& includePaths) {
+void ScriptCompiler::init()
+{
     vmlogger.setEnabled(loglevel::trace, false);
     vm = std::make_unique<sqf::runtime::runtime>(vmlogger, sqf::runtime::runtime::runtime_conf{});
 
@@ -54,20 +55,25 @@ ScriptCompiler::ScriptCompiler(const std::vector<std::filesystem::path>& include
     //    CommandList::init(*vm);
     //    //sqf::commandmap::get().init();
     //});
+
+    addPragma({ "ASC_ignoreFile", [this](const sqf::runtime::parser::pragma& m,
+                    ::sqf::runtime::runtime& runtime,
+                    const ::sqf::runtime::diagnostics::diag_info dinf,
+                    const ::sqf::runtime::fileio::pathinfo location,
+                    const std::string& data) -> std::string
+    {
+        ignoreCurrentFile = true;
+        return {}; // string return type is wrong, isn't used for anything
+    } });
+}
+
+ScriptCompiler::ScriptCompiler(const std::vector<std::filesystem::path>& includePaths) {
+    init();
     initIncludePaths(includePaths);
 }
 
 ScriptCompiler::ScriptCompiler() {
-    vmlogger.setEnabled(loglevel::trace, false);
-    vm = std::make_unique<sqf::runtime::runtime>(vmlogger, sqf::runtime::runtime::runtime_conf{});
-
-    vm->fileio(std::make_unique<sqf::fileio::impl_default>(vmlogger));
-    vm->parser_config(std::make_unique<sqf::parser::config::parser>(vmlogger));
-    vm->parser_preprocessor(std::make_unique<sqf::parser::preprocessor::impl_default>(vmlogger));
-    vm->parser_sqf(std::make_unique<sqf::parser::sqf::parser>(vmlogger));
-
-    CommandList::init(*vm);
-
+    init();
 }
 
 CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path physicalPath, std::filesystem::path virtualPath) {
@@ -100,6 +106,14 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path physicalPat
         //__debugbreak();
         return CompiledCodeData();
     }
+
+    if (ignoreCurrentFile)
+    {
+        std::cout << "File " << physicalPath.generic_string() << " skipped due to ASC_ignoreFile pragma\n";
+        ignoreCurrentFile = false;
+        return CompiledCodeData();
+    }
+
     bool errorflag = false;
 
 
