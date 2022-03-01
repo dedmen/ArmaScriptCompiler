@@ -32,7 +32,7 @@ set(LIBRARY_PATH_ZSTD "${CMAKE_SOURCE_DIR}/lib/zstd")
 set(LIBRARY_PATH_SQFVM "${CMAKE_SOURCE_DIR}/lib/sqfvm")
 set(LIBRARY_PATH_B64  "${CMAKE_SOURCE_DIR}/lib/cpp-base64")
 set(LIBRARY_PATH_LZO  "${CMAKE_SOURCE_DIR}/lib/lzokay")
-set(LIBRARY_PATH_JSON "${CMAKE_SOURCE_DIR}/lib/json")
+set(LIBRARY_PATH_JSON "${CMAKE_SOURCE_DIR}/lib/json/include")
 set(LIBRARY_PATH_SOL2 "${CMAKE_SOURCE_DIR}/lib/sol2")
 
 add_definitions(/DNOMINMAX)
