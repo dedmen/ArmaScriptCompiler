@@ -15,7 +15,7 @@
 #include <queue>
 #include <base64.h>
 
-#include <nlohmann\json.hpp>
+#include <json.hpp>
 #include <src\luaHandler.hpp>
 
 std::queue<std::filesystem::path> tasks;
