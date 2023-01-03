@@ -34,6 +34,7 @@ set(LIBRARY_PATH_B64  "${CMAKE_SOURCE_DIR}/lib/cpp-base64")
 set(LIBRARY_PATH_LZO  "${CMAKE_SOURCE_DIR}/lib/lzokay")
 set(LIBRARY_PATH_JSON "${CMAKE_SOURCE_DIR}/lib/json")
 set(LIBRARY_PATH_SOL2 "${CMAKE_SOURCE_DIR}/lib/sol2")
+set(LIBRARY_PATH_CXXOPTS "${CMAKE_SOURCE_DIR}/lib/cxxopts")
 
 add_definitions(/DNOMINMAX)
 add_definitions(/D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS) #No I don't cheat!
@@ -84,6 +85,7 @@ set(INCLUDE_PATH_ZSTD "${LIBRARY_PATH_ZSTD}/lib")
 #list(REMOVE_ITEM SOURCES_SQFVM "${LIBRARY_PATH_SQFVM}/src/dllexports.cpp")
 
 
+
 set(SQFVM_BUILD_EXECUTABLE OFF CACHE BOOL "no" FORCE)
 set(SQFVM_BUILD_EXECUTABLE_ARMA2_LOCALKEYWORD OFF CACHE BOOL "no" FORCE)
 set(SQFVM_BUILD_LIBRARY OFF CACHE BOOL "no" FORCE)
@@ -95,8 +97,18 @@ set(SQFVM_BUILD_EXECUTABLE_FULL_DIAGNOSE OFF CACHE BOOL "no" FORCE)
 set(SQFVM_BUILD_EXECUTABLE_ARMA2_LOCALKEYWORD_FULL_DIAGNOSE OFF CACHE BOOL "no" FORCE)
 
 set(INCLUDE_PATH_SQFVM "${LIBRARY_PATH_SQFVM}/src")
+
+#cxxopts
+set(CXXOPTS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(CXXOPTS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(CXXOPTS_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+set(CXXOPTS_ENABLE_WARNINGS OFF CACHE BOOL "" FORCE)
+
+set(INCLUDE_PATH_CXXOPTS "${LIBRARY_PATH_CXXOPTS}/include")
+
 add_subdirectory(${LIBRARY_PATH_SQFVM})
 add_subdirectory(${LIBRARY_PATH_SOL2})
+add_subdirectory(${LIBRARY_PATH_CXXOPTS})
 
 set(LUA_BUILD_AS_CXX ON CACHE BOOL "yes" FORCE)
 add_subdirectory("lib/lua")
@@ -106,11 +118,11 @@ add_definitions(/DLOADFILE_CACHE) #SQF VM fileio.cpp cache
 
 add_executable("ArmaScriptCompiler" ${SOURCES_ASC} ${SOURCES_SQFVM} ${SOURCES_ASC_OPT} "${LIBRARY_PATH_LZO}/lzokay.cpp")
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INCLUDE_PATH_ZSTD} ${LIBRARY_PATH_B64} ${INCLUDE_PATH_SQFVM} ${LIBRARY_PATH_LZO} ${LIBRARY_PATH_JSON}) # ${INCLUDE_PATH_ZSTD} ${INCLUDE_PATH_SQFVM}
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INCLUDE_PATH_ZSTD} ${LIBRARY_PATH_B64} ${INCLUDE_PATH_SQFVM} ${LIBRARY_PATH_LZO} ${LIBRARY_PATH_JSON} ${INCLUDE_PATH_CXXOPTS}) # ${INCLUDE_PATH_ZSTD} ${INCLUDE_PATH_SQFVM}
 
 #target_link_libraries("ArmaScriptCompiler" ${CMAKE_THREAD_LIBS_INIT})
 
-target_link_libraries("ArmaScriptCompiler" slibsqfvm libzstd_static sol2 lua_static)
+target_link_libraries("ArmaScriptCompiler" slibsqfvm libzstd_static sol2 lua_static cxxopts)
 
 set_target_properties("ArmaScriptCompiler" PROPERTIES PREFIX "")
 set_target_properties("ArmaScriptCompiler" PROPERTIES FOLDER ArmaScriptCompiler)

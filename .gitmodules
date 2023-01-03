@@ -19,3 +19,6 @@
 [submodule "lib/lua"]
 	path = lib/lua
 	url = https://github.com/walterschell/Lua.git
+[submodule "lib/cxxopts"]
+	path = lib/cxxopts
+	url = https://github.com/jarro2783/cxxopts.git

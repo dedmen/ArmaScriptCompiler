@@ -29,3 +29,7 @@ Create `sqfc.json` in current working directory
   "workerThreads": 8
 }
 ```
+
+## Options
+-l --log log file to output to 
+  Example: .\ArmaScriptCompiler -l sqfc.log

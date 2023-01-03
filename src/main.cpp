@@ -18,6 +18,8 @@
 #include <json.hpp>
 #include <src\luaHandler.hpp>
 
+#include <cxxopts.hpp>
+
 std::queue<std::filesystem::path> tasks;
 std::mutex taskMutex;
 bool threadsShouldRun = true;
@@ -105,6 +107,23 @@ void processFile(ScriptCompiler& comp, std::filesystem::path path) {
 }
 
 int main(int argc, char* argv[]) {
+
+    std::streambuf *coutBuff = std::cout.rdbuf();
+    std::ofstream out;
+    cxxopts::Options options("ArmaScriptCompiler", "Convert sqf to sqfc");
+
+    options.add_options()
+    ("l,log", "Log file", cxxopts::value<std::string>());   // log file path
+
+    auto parse = options.parse(argc, argv);
+
+    if(parse.count("log"))
+    {
+        std::filesystem::path file(parse["log"].as<std::string>());
+        // have the stream create the file.
+        out.open(file);
+        std::cout.rdbuf(out.rdbuf());       // bind buffer to file
+    }
 
     if (std::filesystem::exists("sqfc.lua")) {
         std::cout << "Using LUA for config" << "\n";
@@ -237,5 +256,6 @@ int main(int argc, char* argv[]) {
     hr2C.close();
     */
 
+    std::cout.rdbuf(coutBuff);
     return 0;  //#TODO return real error state if any script failed
 }
