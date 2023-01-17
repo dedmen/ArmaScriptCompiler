@@ -16,7 +16,7 @@
 #include <base64.h>
 
 #include <json.hpp>
-#include <src\luaHandler.hpp>
+#include "luaHandler.hpp"
 
 std::queue<std::filesystem::path> tasks;
 std::mutex taskMutex;

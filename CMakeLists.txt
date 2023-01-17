@@ -122,28 +122,17 @@ target_compile_definitions("ArmaScriptCompiler" PUBLIC SOL_ALL_SAFETIES_ON=1 SOL
 if(CMAKE_COMPILER_IS_GNUCXX)
 	add_compile_definitions(__linux__)
 
-        #target_compile_options(
-	#	${INTERCEPT_PLUGIN_NAME} PRIVATE 
-	#	"-std=c++1z"
-	#	"$<$<CONFIG:Release>:-O3>"
-	#	"-s"
-	#	"-fPIC"
-	#	"-fpermissive"
-	#	"-static-libgcc"
-	#	"-static-libstdc++"
-	#	"-march=i686"
-	#	"-m32"
-	#	"-Wno-ignored-attributes"
-	#	"-static"
-	#	"$<$<CONFIG:Release>:-ffunction-sections>"
-	#	"$<$<CONFIG:Release>:-fdata-sections>"
+	target_compile_options(
+		"ArmaScriptCompiler" PRIVATE
+                "-march=native"
+                "-fpermissive"
+        )
 
-	#)
 	target_link_options("ArmaScriptCompiler" PRIVATE "-m32" "-fPIC" "-static" "-static-libgcc" "-static-libstdc++"
-	"$<$<CONFIG:Release>:-Wl,--gc-sections>"
-	"$<$<CONFIG:Release>:-Wl,--strip-all>"
-	"-Wl,--stack,4194304" #STack size
-	) 
+		"$<$<CONFIG:Release>:-Wl,--gc-sections>"
+		"$<$<CONFIG:Release>:-Wl,--strip-all>"
+		"-Wl,--stack,4194304" #STack size
+	)
 	set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 
 	target_link_libraries("ArmaScriptCompiler" "libstdc++.a")
@@ -151,7 +140,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 else()
 	target_compile_options(lua_static PRIVATE "$<$<CONFIG:Release>:/MT>")
 	target_compile_options(
-		"ArmaScriptCompiler" PRIVATE 
+		"ArmaScriptCompiler" PRIVATE
 		"/MP" "/Zi"
 		"$<$<CONFIG:Release>:/MT>"
 		"$<$<CONFIG:Release>:/Ox>"
@@ -163,9 +152,9 @@ else()
 		"/FS"
 		"/bigobj"
 	)
-	
+
 	target_compile_options(
-		slibsqfvm PRIVATE 
+		slibsqfvm PRIVATE
 		"/MP" "/Zi"
 		"$<$<CONFIG:Release>:/MT>"
 		"$<$<CONFIG:Release>:/Ox>"
