@@ -310,7 +310,8 @@ private:
 #define NULAR_CONST_COMMAND(name) nularyActions[#name] = NularPushConstNularCommand(#name)
 
         // These commands will be evaluated once at compilation, and then used as a constant with a push instruction
-
+        // ! Important, Arma's bytecode savegame serialization also needs to support these, else they will be serialized as a "false" boolean constant
+        
         NULAR_CONST_COMMAND(nil);
 
         //#TODO test this

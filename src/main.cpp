@@ -16,7 +16,7 @@
 #include <queue>
 #include <base64.h>
 
-#include <nlohmann/json.hpp>
+#include <json.hpp>
 #include <src/luaHandler.hpp>
 
 std::queue<std::filesystem::path> tasks;
@@ -56,8 +56,14 @@ void processFile(ScriptCompiler& comp, std::filesystem::path path) {
 
 
         auto outputPath = outputDir / pathRelative.parent_path() / (path.stem().string() + ".sqfc");
-
-        if (std::filesystem::exists(outputPath)) return;
+        
+        //if sqfc exists, check if the sqf file has been updated (is newer). if not, skip this sqf file
+        if (std::filesystem::exists(outputPath)) { 
+            auto sqfcWriteTime = std::filesystem::last_write_time(outputPath);
+            auto sqfWriteTime = std::filesystem::last_write_time(path);
+            if (sqfWriteTime <= sqfcWriteTime) //sqf file is older than sqfc
+                return;
+        }
 
 
         std::error_code ec;
