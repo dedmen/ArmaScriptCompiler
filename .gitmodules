@@ -12,7 +12,7 @@
 	url = https://github.com/jackoalan/lzokay.git
 [submodule "lib/json"]
 	path = lib/json
-	url = https://github.com/nlohmann/json.git
+	url = https://github.com/azadkuh/nlohmann_json_release.git
 [submodule "lib/sol2"]
 	path = lib/sol2
 	url = https://github.com/ThePhD/sol2.git

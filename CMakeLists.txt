@@ -32,7 +32,7 @@ set(LIBRARY_PATH_ZSTD "${CMAKE_SOURCE_DIR}/lib/zstd")
 set(LIBRARY_PATH_SQFVM "${CMAKE_SOURCE_DIR}/lib/sqfvm")
 set(LIBRARY_PATH_B64  "${CMAKE_SOURCE_DIR}/lib/cpp-base64")
 set(LIBRARY_PATH_LZO  "${CMAKE_SOURCE_DIR}/lib/lzokay")
-set(LIBRARY_PATH_JSON "${CMAKE_SOURCE_DIR}/lib/json/single_include")
+set(LIBRARY_PATH_JSON "${CMAKE_SOURCE_DIR}/lib/json")
 set(LIBRARY_PATH_SOL2 "${CMAKE_SOURCE_DIR}/lib/sol2")
 
 add_definitions(/DNOMINMAX)
@@ -138,14 +138,14 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 
 	)
 	target_link_options("ArmaScriptCompiler" PRIVATE "-fPIC" "-static" "-static-libgcc" "-static-libstdc++"
-	"$<$<CONFIG:Release>:-Wl,--gc-sections>"
-	"$<$<CONFIG:Release>:-Wl,--strip-all>"
-	) 
+		"$<$<CONFIG:Release>:-Wl,--gc-sections>"
+		"$<$<CONFIG:Release>:-Wl,--strip-all>"
+	)
 	set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 else()
 	target_compile_options(lua_static PRIVATE "$<$<CONFIG:Release>:/MT>")
 	target_compile_options(
-		"ArmaScriptCompiler" PRIVATE 
+		"ArmaScriptCompiler" PRIVATE
 		"/MP" "/Zi"
 		"$<$<CONFIG:Release>:/MT>"
 		"$<$<CONFIG:Release>:/Ox>"
@@ -157,9 +157,9 @@ else()
 		"/FS"
 		"/bigobj"
 	)
-	
+
 	target_compile_options(
-		slibsqfvm PRIVATE 
+		slibsqfvm PRIVATE
 		"/MP" "/Zi"
 		"$<$<CONFIG:Release>:/MT>"
 		"$<$<CONFIG:Release>:/Ox>"
