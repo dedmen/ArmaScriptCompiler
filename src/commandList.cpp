@@ -23,7 +23,7 @@ private _binaryPriority = createHashMapFromArray [
     ["&&", 2],
     ["||", 1],
     ["atan2", 7],
-    ["#", 0],
+    ["#", 9],
     ["mod", 7],
     ["%", 7],
     ["*", 7],
@@ -36,7 +36,7 @@ private _binaryPriority = createHashMapFromArray [
     ["else", 5],
     [">=", 3],
     [">>", 3],
-    ["^", 9],
+    ["^", 8],
     ["or", 1],
     ["max", 6],
     ["min", 6]
@@ -381,7 +381,7 @@ void CommandList::initNular(::sqf::runtime::runtime& runtime) {
 
 void CommandList::initBinary(::sqf::runtime::runtime& runtime) {
     runtime.register_sqfop(binary(3, "!=", t_any(), t_any(), "", [](sqf::runtime::runtime& runtime, value::cref l, value::cref r) -> value { runtime.__logmsg(logmessage::runtime::ErrorMessage(runtime.context_active().current_frame().diag_info_from_position(), "NOT IMPLEMENTED", "!=")); return {}; }));
-    runtime.register_sqfop(binary(0, "#", t_any(), t_any(), "", [](sqf::runtime::runtime& runtime, value::cref l, value::cref r) -> value { runtime.__logmsg(logmessage::runtime::ErrorMessage(runtime.context_active().current_frame().diag_info_from_position(), "NOT IMPLEMENTED", "#")); return {}; }));
+    runtime.register_sqfop(binary(9, "#", t_any(), t_any(), "", [](sqf::runtime::runtime& runtime, value::cref l, value::cref r) -> value { runtime.__logmsg(logmessage::runtime::ErrorMessage(runtime.context_active().current_frame().diag_info_from_position(), "NOT IMPLEMENTED", "#")); return {}; }));
     runtime.register_sqfop(binary(7, "%", t_any(), t_any(), "", [](sqf::runtime::runtime& runtime, value::cref l, value::cref r) -> value { runtime.__logmsg(logmessage::runtime::ErrorMessage(runtime.context_active().current_frame().diag_info_from_position(), "NOT IMPLEMENTED", "%")); return {}; }));
     runtime.register_sqfop(binary(2, "&&", t_any(), t_any(), "", [](sqf::runtime::runtime& runtime, value::cref l, value::cref r) -> value { runtime.__logmsg(logmessage::runtime::ErrorMessage(runtime.context_active().current_frame().diag_info_from_position(), "NOT IMPLEMENTED", "&&")); return {}; }));
     runtime.register_sqfop(binary(7, "*", t_any(), t_any(), "", [](sqf::runtime::runtime& runtime, value::cref l, value::cref r) -> value { runtime.__logmsg(logmessage::runtime::ErrorMessage(runtime.context_active().current_frame().diag_info_from_position(), "NOT IMPLEMENTED", "*")); return {}; }));
@@ -395,7 +395,7 @@ void CommandList::initBinary(::sqf::runtime::runtime& runtime) {
     runtime.register_sqfop(binary(3, ">", t_any(), t_any(), "", [](sqf::runtime::runtime& runtime, value::cref l, value::cref r) -> value { runtime.__logmsg(logmessage::runtime::ErrorMessage(runtime.context_active().current_frame().diag_info_from_position(), "NOT IMPLEMENTED", ">")); return {}; }));
     runtime.register_sqfop(binary(3, ">=", t_any(), t_any(), "", [](sqf::runtime::runtime& runtime, value::cref l, value::cref r) -> value { runtime.__logmsg(logmessage::runtime::ErrorMessage(runtime.context_active().current_frame().diag_info_from_position(), "NOT IMPLEMENTED", ">=")); return {}; }));
     runtime.register_sqfop(binary(3, ">>", t_any(), t_any(), "", [](sqf::runtime::runtime& runtime, value::cref l, value::cref r) -> value { runtime.__logmsg(logmessage::runtime::ErrorMessage(runtime.context_active().current_frame().diag_info_from_position(), "NOT IMPLEMENTED", ">>")); return {}; }));
-    runtime.register_sqfop(binary(9, "^", t_any(), t_any(), "", [](sqf::runtime::runtime& runtime, value::cref l, value::cref r) -> value { runtime.__logmsg(logmessage::runtime::ErrorMessage(runtime.context_active().current_frame().diag_info_from_position(), "NOT IMPLEMENTED", "^")); return {}; }));
+    runtime.register_sqfop(binary(8, "^", t_any(), t_any(), "", [](sqf::runtime::runtime& runtime, value::cref l, value::cref r) -> value { runtime.__logmsg(logmessage::runtime::ErrorMessage(runtime.context_active().current_frame().diag_info_from_position(), "NOT IMPLEMENTED", "^")); return {}; }));
     runtime.register_sqfop(binary(4, "action", t_any(), t_any(), "", [](sqf::runtime::runtime& runtime, value::cref l, value::cref r) -> value { runtime.__logmsg(logmessage::runtime::ErrorMessage(runtime.context_active().current_frame().diag_info_from_position(), "NOT IMPLEMENTED", "action")); return {}; }));
     runtime.register_sqfop(binary(4, "actionparams", t_any(), t_any(), "", [](sqf::runtime::runtime& runtime, value::cref l, value::cref r) -> value { runtime.__logmsg(logmessage::runtime::ErrorMessage(runtime.context_active().current_frame().diag_info_from_position(), "NOT IMPLEMENTED", "actionparams")); return {}; }));
     runtime.register_sqfop(binary(4, "add3denlayer", t_any(), t_any(), "", [](sqf::runtime::runtime& runtime, value::cref l, value::cref r) -> value { runtime.__logmsg(logmessage::runtime::ErrorMessage(runtime.context_active().current_frame().diag_info_from_position(), "NOT IMPLEMENTED", "add3denlayer")); return {}; }));
