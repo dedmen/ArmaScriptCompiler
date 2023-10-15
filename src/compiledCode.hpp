@@ -25,7 +25,11 @@ makeArray <size>
 #include <intercept.hpp>
 #endif
 
-
+#if not defined(_MSC_VER)
+#define __forceinline __attribute__((always_inline))
+#include <signal.h>
+#define __debugbreak() raise(SIGTRAP)
+#endif
 
 enum class InstructionType {
     endStatement,
