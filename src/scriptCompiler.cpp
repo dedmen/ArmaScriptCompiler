@@ -76,6 +76,13 @@ ScriptCompiler::ScriptCompiler() {
     init();
 }
 
+std::string PathToWindowsString(const std::filesystem::path& path)
+{
+    std::string result = path.generic_string();
+    std::replace(result.begin(), result.end(), '/', '\\');
+    return result;
+}
+
 CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path physicalPath, std::filesystem::path virtualPath) {
     std::ifstream inputFile(physicalPath);
     
@@ -87,6 +94,7 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path physicalPat
     scriptCode.resize(filesize);
     inputFile.read(scriptCode.data(), filesize);
 
+    // Strip UTF-8 BOM
     if (
         static_cast<unsigned char>(scriptCode[0]) == 0xef &&
         static_cast<unsigned char>(scriptCode[1]) == 0xbb &&
@@ -100,8 +108,7 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path physicalPat
     //    throw std::domain_error("no include");
     //}
 
-    
-    auto preprocessedScript = vm->parser_preprocessor().preprocess(*vm, scriptCode, sqf::runtime::fileio::pathinfo(physicalPath.string(), virtualPath.string()) );
+    auto preprocessedScript = vm->parser_preprocessor().preprocess(*vm, scriptCode, sqf::runtime::fileio::pathinfo(physicalPath.string(), PathToWindowsString(virtualPath)) );
     if (!preprocessedScript) {
         //__debugbreak();
         return CompiledCodeData();
@@ -644,7 +651,7 @@ CompiledCodeData ScriptCompiler::compileScriptLua(std::filesystem::path physical
 void ScriptCompiler::initIncludePaths(const std::vector<std::filesystem::path>& paths) {
     for (auto& includefolder : paths) {
 
-        if (includefolder.string().length() == 3 && includefolder.string().substr(1) == ":/") {
+        if (includefolder.string().length() == 3 && includefolder.generic_string().substr(1) == ":/") {
             // pdrive
 
             //const std::filesystem::path ignoreGit(".git");
@@ -668,7 +675,7 @@ void ScriptCompiler::initIncludePaths(const std::vector<std::filesystem::path>& 
             auto str = includefolder.lexically_normal().string();
             if (str.back() == std::filesystem::path::preferred_separator)
                 str.pop_back();
-            vm->fileio().add_mapping(str, "/");
+            vm->fileio().add_mapping(str, "\\");
         } else {
             vm->fileio().add_mapping_auto(includefolder.string());
         }
