@@ -26,6 +26,9 @@ Create `sqfc.json` in current working directory
     "\\backups\\"
   ],
   "outputDir": "P:/",
-  "workerThreads": 8
+  "workerThreads": 8,
+  "rootPathMappings": [
+    ["T:/", "\\"]
+  ]
 }
 ```

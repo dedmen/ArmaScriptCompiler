@@ -24,6 +24,44 @@ std::mutex taskMutex;
 bool threadsShouldRun = true;
 std::filesystem::path outputDir;
 
+
+// Paths that should be considered the root of a P-drive, even if its not directly a drive letter
+// Basically they just get stripped off the front
+
+// rootPathMappings = {};
+// inputPath = "P:/test/temp/thing.sqf"
+// results in virtualPath = "\\test\\temp\\thing.sqf"
+
+// rootPathMappings = { {"P:/test", "/"} }
+// inputPath = "P:/test/temp/thing.sqf"
+// results in virtualPath = "\\temp\\thing.sqf"
+
+std::vector<std::pair<std::filesystem::path, std::filesystem::path>> rootPathMappings;
+
+std::filesystem::path ApplyRootPathMapping(const std::filesystem::path& inputPath)
+{
+    // Performance of this is meh, but I don't care rn
+
+    for (auto& it : rootPathMappings)
+    {
+        auto deltaPos = std::mismatch(it.first.begin(), it.first.end(), inputPath.begin(), inputPath.end());
+
+        // If the first delta, is the end of our mapping, that means the whole mapping matched
+        if (deltaPos.first != it.first.end())
+            continue;
+
+        auto resultPath = it.second / inputPath.lexically_relative(it.first);
+        return resultPath;
+    }
+
+
+    auto rootDir = inputPath.root_path();
+    auto pathRelative = inputPath.lexically_relative(rootDir);
+
+    return pathRelative;
+}
+
+
 void compileRecursive(std::filesystem::path inputDir) {
 
     const std::filesystem::path ignoreGit(".git");
@@ -51,9 +89,7 @@ void compileRecursive(std::filesystem::path inputDir) {
 
 void processFile(ScriptCompiler& comp, std::filesystem::path path) {
     try {
-        auto rootDir = path.root_path();
-        auto pathRelative = path.lexically_relative(rootDir);
-
+        auto pathRelative = ApplyRootPathMapping(path);
 
         auto outputPath = outputDir / pathRelative.parent_path() / (path.stem().string() + ".sqfc");
         
@@ -64,7 +100,6 @@ void processFile(ScriptCompiler& comp, std::filesystem::path path) {
             if (sqfWriteTime <= sqfcWriteTime) //sqf file is older than sqfc
                 return;
         }
-
 
         std::error_code ec;
         std::filesystem::create_directories(outputPath.parent_path(), ec);
@@ -125,7 +160,7 @@ int main(int argc, char* argv[]) {
     auto json = nlohmann::json::parse(inputFile);
 
     std::vector<std::string> checkConfigKeys = { "excludeList", "inputDirs", "includePaths", "outputDir", "workerThreads"};
-    for (std::string &key : checkConfigKeys) {
+    for (const std::string& key : checkConfigKeys) {
         if (!json.contains(key)) {
             std::cout << "Missing \"" << key << "\" in sqfc.json" << "\n";
             return 1;
@@ -141,17 +176,38 @@ int main(int argc, char* argv[]) {
 
 
     std::vector<std::filesystem::path> inputDirs;
-    for (std::string &inputDir : json["inputDirs"].get<std::vector<std::string>>()) {
+    for (const std::string& inputDir : json["inputDirs"].get<std::vector<std::string>>()) {
         inputDirs.push_back(std::filesystem::path(inputDir));
     }
 
     std::vector<std::filesystem::path> includePaths;
-    for (std::string &includePath : json["includePaths"].get<std::vector<std::string>>()) {
+    for (const std::string& includePath : json["includePaths"].get<std::vector<std::string>>()) {
         includePaths.push_back(std::filesystem::path(includePath));
     }
 
     outputDir = std::filesystem::path(json["outputDir"].get<std::string>());
     int numberOfWorkerThreads = json["workerThreads"].get<int>();
+
+    if (!json["rootPathMappings"].is_null() && !json["rootPathMappings"].is_array())
+    {
+        std::cout << "sqfc.json error, rootPathMappings has to be array of arrays";
+    }
+    else
+    {
+        for (const auto& includePath : json["rootPathMappings"]) {
+            auto x = includePath.get<std::array<std::string, 2>>();
+            auto virtualPath = x[1];
+            // Strip leading slash if there is one, we add that back later
+            if (virtualPath.front() == '/' || virtualPath.front() == '\\')
+                virtualPath.erase(0, 1);
+            
+            rootPathMappings.push_back({std::filesystem::path(x[0]).lexically_normal(), std::filesystem::path(virtualPath).lexically_normal()});
+        }
+    }
+
+ 
+
+    // Setup workers
 
     std::mutex workWait;
     workWait.lock();
