@@ -4,6 +4,7 @@
 #include <functional>
 #include <zstd.h>
 #include <sstream>
+#include <strstream>
 
 static constexpr const int compressionLevel = 22;
 
@@ -205,7 +206,7 @@ void ScriptSerializer::compiledToBinary(const CompiledCodeData& code, std::ostre
             __debugbreak();
 
         writeT(static_cast<uint32_t>(bufferContent.size()), output); // uncompressed size
-        writeT(static_cast<uint8_t>(2), output); // compression method, always 2
+        writeT(static_cast<uint8_t>(2), output); // compression method, always 2 (That is RV engine stuff)
         output.write((const char*)compressed.get(), compressed_size);
     } else {
         writeT(static_cast<uint8_t>(SerializedBlockType::constant), output);
@@ -227,6 +228,58 @@ void ScriptSerializer::compiledToBinary(const CompiledCodeData& code, std::ostre
     output.flush();
 }
 
+// lzokay_stream.cpp
+extern lzokay::EResult decompressStream(std::istream& src, std::size_t src_size,
+                                        uint8_t* dst, std::size_t init_dst_size,
+                                        std::size_t& dst_size);
+
+struct DecompressedData
+{
+    DecompressedData(std::vector<uint8_t>&& data):
+        uncompressedData(std::move(data)),
+        buf(uncompressedData.data(), uncompressedData.size()),
+        stream(&buf)
+    {}
+
+    std::vector<uint8_t> uncompressedData;
+    std::strstreambuf buf;
+    std::istream stream;
+};
+
+//#TODO make the compress write also a method
+
+// This is shit code, it depends on RVO being applied otherwise the streambuf pointer would change
+DecompressedData DecompressFromStream(std::istream& input)
+{
+    size_t uncompressedSize = readT<uint32_t>(input);
+    readT<uint8_t>(input); // compression method, always 2
+
+    // compressed buffer
+
+    std::vector<uint8_t> uncompressedData;
+    uncompressedData.resize(uncompressedSize);
+
+    const auto pos = input.tellg();
+    input.seekg(0, SEEK_END);
+    const std::streamoff size = input.tellg(); // -pos;
+    input.seekg(pos, SEEK_SET);
+
+    //if (pos == 0x2bc && size == 3413)
+    //{
+    //    std::vector<uint8_t> compData;
+    //    compData.resize(size);
+    //    input.read((char*)compData.data(), size);
+    //    auto res = lzokay::decompress(compData.data(), size - pos, uncompressedData.data(), uncompressedSize, uncompressedSize);
+    //}
+
+    const auto error = decompressStream(input, size, uncompressedData.data(), uncompressedSize, uncompressedSize);
+    if (error < lzokay::EResult::Success)
+        __debugbreak();
+
+    return { std::move(uncompressedData) };
+}
+
+
 CompiledCodeData ScriptSerializer::binaryToCompiled(std::istream& input) {
     CompiledCodeData output;
     output.version = readT<uint32_t>(input);
@@ -241,6 +294,10 @@ CompiledCodeData ScriptSerializer::binaryToCompiled(std::istream& input) {
             case SerializedBlockType::constant: {
                 readConstants(output, input);
             } break;
+            case SerializedBlockType::constantCompressed: {
+                auto decompressedData = DecompressFromStream(input);
+                readConstants(output, decompressedData.stream);
+            } break;
             case SerializedBlockType::locationInfo: {
                 auto locCount = readT<uint16_t>(input);
 
@@ -250,6 +307,19 @@ CompiledCodeData ScriptSerializer::binaryToCompiled(std::istream& input) {
             } break;
             case SerializedBlockType::code: {
                 output.codeIndex = readT<uint64_t>(input);
+            } break;
+            case SerializedBlockType::codeDebug: {
+                __debugbreak(); // not implemented
+            } break;
+            case SerializedBlockType::commandNameDirectory: {
+                // Compressed buffer
+
+                auto decompressedData = DecompressFromStream(input);
+
+                auto numCommandNames = readT<uint16_t>(decompressedData.stream);
+                output.commandNameDirectory.reserve(numCommandNames);
+                for (int i = 0; i < numCommandNames; ++i)
+                    output.commandNameDirectory.emplace_back(readString(decompressedData.stream));
             } break;
         }
     }
@@ -639,8 +709,8 @@ std::vector<char> ScriptSerializer::decompressDataDictionary(const std::vector<c
 }
 
 STRINGTYPE ScriptSerializer::readString(std::istream& input) {
-    uint32_t length;
-    input.read(reinterpret_cast<char*>(&length) + 1, 3);
+    uint32_t length{}; // length is actually uint24
+    input.read(reinterpret_cast<char*>(&length), 3);
 
 
     if constexpr (std::is_same_v<STRINGTYPE, std::string>) {

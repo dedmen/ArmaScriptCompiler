@@ -137,9 +137,28 @@ void processFile(ScriptCompiler& comp, std::filesystem::path path) {
     catch (std::runtime_error& err) {
 
     }
-
-
 }
+
+void DecompressSQFC(std::filesystem::path inputPath, std::filesystem::path outputPath)
+{
+    // To use this, also need to edit ScriptSerializer::compiledToBinary and disable compressed serialization
+
+    std::ifstream inputFile(inputPath, std::ifstream::binary);
+    auto compiledData = ScriptSerializer::binaryToCompiled(inputFile);
+
+
+
+    std::stringstream output(std::stringstream::binary | std::stringstream::out);
+    ScriptSerializer::compiledToBinary(compiledData, output);
+
+    auto data = output.str();
+    auto encoded = data; //base64_encode(data);
+    std::ofstream outputFile(outputPath, std::ofstream::binary);
+
+    outputFile.write(encoded.data(), encoded.length());
+    outputFile.flush();
+}
+
 
 int main(int argc, char* argv[]) {
 
