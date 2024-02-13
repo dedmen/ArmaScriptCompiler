@@ -29,6 +29,9 @@ Create `sqfc.json` in current working directory
   "workerThreads": 8,
   "rootPathMappings": [
     ["T:/", "\\"]
-  ]
+  ],
+  "logging": {
+    "verbose": false
+  }
 }
 ```

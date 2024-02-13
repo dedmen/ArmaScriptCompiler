@@ -18,6 +18,7 @@
 
 #include <json.hpp>
 #include "luaHandler.hpp"
+#include "logger.hpp"
 
 std::queue<std::filesystem::path> tasks;
 std::mutex taskMutex;
@@ -149,8 +150,6 @@ int main(int argc, char* argv[]) {
         return 0; //#TODO return real error state if any script failed
     }
 
-
-
     if (!std::filesystem::exists("sqfc.json")) {
         std::cout << "Missing sqfc.json in current working directory" << "\n";
         return 1;
@@ -203,6 +202,15 @@ int main(int argc, char* argv[]) {
             
             rootPathMappings.push_back({std::filesystem::path(x[0]).lexically_normal(), std::filesystem::path(virtualPath).lexically_normal()});
         }
+    }
+
+    // Logging
+
+
+    if (auto loggingConfig = json["logging"]; !loggingConfig.is_null())
+    {
+        if (auto verboseCfg = loggingConfig["verbose"]; verboseCfg.is_boolean())
+            GLogger.m_EnableVerbose = verboseCfg;
     }
 
  

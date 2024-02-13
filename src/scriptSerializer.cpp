@@ -278,9 +278,10 @@ void ScriptSerializer::compiledToBinaryCompressed(const CompiledCodeData& code, 
 
 template<typename CharT, typename TraitsT = std::char_traits<CharT> >
 class vectorwrapbuf : public std::basic_streambuf<CharT, TraitsT> {
+    using base = std::basic_streambuf<CharT, TraitsT>;
 public:
     vectorwrapbuf(std::vector<CharT>& vec) {
-        setg(vec.data(), vec.data(), vec.data() + vec.size());
+        base::setg(vec.data(), vec.data(), vec.data() + vec.size());
     }
 };
 

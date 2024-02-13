@@ -5,6 +5,8 @@
 
 #include <iostream>
 #include <mutex>
+#include <format>
+#include "logger.hpp"
 #include "optimizer/optimizerModuleBase.hpp"
 #include "optimizer/optimizer.h"
 #include "scriptSerializer.hpp"
@@ -15,6 +17,7 @@
 #include "parser/preprocessor/default.h"
 #include "parser/sqf/parser.tab.hh"
 #include "runtime/d_string.h"
+#include "runtime/logging.h"
 
 std::once_flag commandMapInitFlag;
 
@@ -61,10 +64,70 @@ void ScriptCompiler::init()
                     const ::sqf::runtime::diagnostics::diag_info dinf,
                     const ::sqf::runtime::fileio::pathinfo location,
                     const std::string& data) -> std::string
-    {
-        ignoreCurrentFile = true;
-        return {}; // string return type is wrong, isn't used for anything
-    } });
+        {
+            if (ignoreCurrentFile)
+                return {};
+
+            GLogger.Log(LogLevel::Verbose, std::format("File '{}' skipped because it uses pragma ASC_ignoreFile", location.virtual_));
+
+            ignoreCurrentFile = true;
+            return {}; // string return type is wrong, isn't used for anything
+        } });
+
+    // Handle macros that must be resolved at game start time and cannot be precompiled
+    auto runtimeMacroCallback = [this](const sqf::runtime::parser::macro& m,
+        const ::sqf::runtime::diagnostics::diag_info dinf,
+        const ::sqf::runtime::fileio::pathinfo location,
+        const std::vector<std::string>& params,
+        ::sqf::runtime::runtime& runtime) -> std::string
+        {
+            if (ignoreCurrentFile)
+                return {};
+
+            GLogger.Log(LogLevel::Verbose, std::format("File '{}' skipped because it uses runtime-only macro '{}'", location.virtual_, m.name()));
+
+            ignoreCurrentFile = true;
+            return {};
+        };
+
+    // https://community.bistudio.com/wiki/PreProcessor_Commands#has_include
+    for (auto& it : {
+        "__has_include",
+        "__DATE_ARR__",
+        "__DATE_STR__",
+        "__DATE_STR_ISO8601__",
+        "__TIME__",
+        "__TIME_UTC__",
+        "__DAY__",
+        "__MONTH__",
+        "__YEAR__",
+        "__TIMESTAMP_UTC__",
+
+        // We could support these, shouldn't make a different, random number is random
+        "__RAND_INT8__",
+        "__RAND_INT16__",
+        "__RAND_INT32__",
+        "__RAND_INT64__",
+        "__RAND_UINT8__",
+        "__RAND_UINT16__",
+        "__RAND_UINT32__",
+        "__RAND_UINT64__"
+        // SQF-VM supports these, but it sets wrong values. We want runtime ones.
+        "__GAME_VER__",
+        "__GAME_VER_MAJ__",
+        "__GAME_VER_MIN__",
+        "__GAME_BUILD__",
+
+        "__A3_DIAG__",
+        "__A3_DEBUG__",
+        "__A3_EXPERIMENTAL__",
+        "__A3_PROFILING__"
+    })
+        addMacro({ it, runtimeMacroCallback });
+
+    addMacro({ "__ARMA__", "1" }); // Only A3 has bytecode
+    addMacro({ "__ARMA3__", "1" }); // Only A3 has bytecode
+
 }
 
 ScriptCompiler::ScriptCompiler(const std::vector<std::filesystem::path>& includePaths) {
@@ -116,7 +179,6 @@ CompiledCodeData ScriptCompiler::compileScript(std::filesystem::path physicalPat
 
     if (ignoreCurrentFile)
     {
-        std::cout << "File " << physicalPath.generic_string() << " skipped due to ASC_ignoreFile pragma\n";
         ignoreCurrentFile = false;
         return CompiledCodeData();
     }
