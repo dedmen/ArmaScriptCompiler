@@ -17,34 +17,34 @@ jobs:
           path: test/*.json
           if-no-files-found: error
 
-  linux-build:
-    name: Linux build
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Git checkout
-        uses: actions/checkout@v2
-        with:
-          submodules: true
-
-      - name: Install dependencies
-        run: |
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-          sudo apt-get update
-          sudo apt-get install -y gcc-11 g++-11
-          sudo apt-get remove -y libtbb-dev
-
-      - name: Build Linux 64 bit
-        run: mkdir build-linux64 && cd build-linux64 && cmake .. && cmake --build . --config Release --parallel 2
-        env:
-          CC: gcc-11
-          CXX: g++-11
-
-      - name: Upload Linux 64 bit
-        uses: actions/upload-artifact@v2
-        with:
-          name: Linux x64
-          path: release
-          if-no-files-found: error
+#  linux-build:
+#    name: Linux build
+#    runs-on: ubuntu-22.04
+#    steps:
+#      - name: Git checkout
+#        uses: actions/checkout@v2
+#        with:
+#          submodules: true
+#
+#      - name: Install dependencies
+#        run: |
+#          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+#          sudo apt-get update
+#          sudo apt-get install -y gcc-13 g++-13
+#          sudo apt-get remove -y libtbb-dev
+#
+#      - name: Build Linux 64 bit
+#        run: mkdir build-linux64 && cd build-linux64 && cmake .. && cmake --build . --config Release --parallel 2
+#        env:
+#          CC: gcc-13
+#          CXX: g++-13
+#
+#      - name: Upload Linux 64 bit
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: Linux x64
+#          path: release
+#          if-no-files-found: error
 
   windows-build:
     name: Windows build
