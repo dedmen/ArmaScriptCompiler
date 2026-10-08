@@ -8,6 +8,11 @@
 
 static constexpr const int compressionLevel = 22;
 
+// Versions:
+// 1: Base
+// 2: Adds hashMap constant, adds makeHashMap instruction, changes serialized size of makeArray instruction argument from uint16 to uint32
+
+
 void blaBla(const CompiledCodeData& code, const std::vector<ScriptInstruction>& inst, std::ostream& output);
 
 void blaBLaConstant(const CompiledCodeData& code, const ScriptConstant& constant, std::ostream& output, bool inArray = false) {
@@ -56,6 +61,30 @@ void blaBLaConstant(const CompiledCodeData& code, const ScriptConstant& constant
         output.seekp(-2, SEEK_CUR);
         output << "]\n";
         break;
+    case ConstantType::hashMap: {
+        if (!inArray)
+            output << "push HASHMAP {";
+        else
+            output << "{\n";
+
+        //#TODO std::views::chunk
+        bool isKey = true;
+
+        for (auto& it : constant.GetArray().content)
+        {
+            blaBLaConstant(code, it, output, true);
+            output.seekp(-2, SEEK_CUR); // Cut off ", "
+
+            if (isKey)
+                output << ":"; // Wrote key, next is value
+            else
+                output << "\n"; // Wrote value, new line
+
+            isKey = !isKey;
+        }
+        output.seekp(-2, SEEK_CUR);
+        output << "}\n";
+    } break;
     default:;
     }
 
@@ -92,6 +121,9 @@ void blaBla(const CompiledCodeData& code, const std::vector<ScriptInstruction>& 
             break;
         case InstructionType::makeArray:
             output << "makeArray " << std::get<uint64_t>(it.content) << "\n";
+            break;
+        case InstructionType::makeHashMap:
+            output << "makeHashMap\n";
             break;
         default:;
         }
@@ -403,7 +435,7 @@ void ScriptSerializer::instructionToBinary(const CompiledCodeData& code, const S
     output.flush();
     switch (instruction.type) {
 
-        case InstructionType::endStatement: break;
+        case InstructionType::endStatement: break; // No arguments
         case InstructionType::push: {
             auto constantIndex = std::get<uint64_t>(instruction.content);
            if (constantIndex != static_cast<uint16_t>(constantIndex))
@@ -425,11 +457,17 @@ void ScriptSerializer::instructionToBinary(const CompiledCodeData& code, const S
             break;
         case InstructionType::makeArray: {
             auto constantIndex = std::get<uint64_t>(instruction.content);
-            if (constantIndex != static_cast<uint16_t>(constantIndex))
+            if (constantIndex != static_cast<uint32_t>(constantIndex)) // Truncation check
                 __debugbreak();
-            writeT(static_cast<uint16_t>(constantIndex), output);
+
+            if (code.version == 1)
+                writeT(static_cast<uint16_t>(constantIndex), output);
+            else
+                writeT(static_cast<uint32_t>(constantIndex), output);
         } break;
-            
+
+        case InstructionType::makeHashMap: break; // No arguments
+
         default: ;
     }
 }
@@ -481,8 +519,11 @@ ScriptInstruction ScriptSerializer::binaryToInstruction(const CompiledCodeData& 
             return ScriptInstruction{ type, offset, fileIndex, fileLine, commandName };
         }
         case InstructionType::makeArray: {
-            auto arraySize = readT<uint16_t>(input);
+            uint32_t arraySize = code.version == 1 ? readT<uint16_t>(input) : readT<uint32_t>(input);
             return ScriptInstruction{ type, offset, fileIndex, fileLine, static_cast<uint64_t>(arraySize) };
+        }
+        case InstructionType::makeHashMap: {
+            return ScriptInstruction{ type, offset, fileIndex, fileLine, {} }; // No Arguments
         }
     }
     __debugbreak();
@@ -556,14 +597,28 @@ ScriptConstant ScriptSerializer::readConstant(CompiledCodeData& code, std::istre
         case ConstantType::boolean: 
             return readT<bool>(input);
         case ConstantType::array:
+        case ConstantType::hashMap:
         {
             auto size = readT<uint32_t>(input);
+
+            if (type == ConstantType::hashMap && size % 2 != 0)
+            {
+                throw std::runtime_error("SQFC HashMap constant has wrong number of elements, not multiple of 2");
+                return {};
+            }
+
             ScriptConstantArray arr;
             arr.content.reserve(size);
             for (int i = 0; i < size; ++i) {
                 arr.content.emplace_back(readConstant(code, input));
             }
-            return arr;
+
+            auto res = ScriptConstant(std::move(arr));
+
+            if (type == ConstantType::hashMap) // Its an array now, store the proper type
+                res.forceSetType(ConstantType::hashMap);
+
+            return res;
         } break;
         case ConstantType::nularCommand: 
             return ScriptConstantNularCommand(readString(input));
@@ -607,6 +662,7 @@ void ScriptSerializer::collectCommandNames(const CompiledCodeData& code, std::se
                 auto& array = it.GetArray();
                 collectArray(array.content);
             }
+            //#TODO hashmap
         }
     };
 
@@ -620,6 +676,7 @@ void ScriptSerializer::collectCommandNames(const CompiledCodeData& code, std::se
             auto& array = it.GetArray();
             collectArray(array.content);
         }
+        //#TODO hashmap
     }
 }
 
@@ -628,7 +685,8 @@ void ScriptSerializer::collectCommandNames(const std::vector<ScriptInstruction>&
         switch (it.type) {
           case InstructionType::endStatement: break;
           case InstructionType::push: break;
-          case InstructionType::makeArray: break;  
+          case InstructionType::makeArray: break;
+          case InstructionType::makeHashMap: break;
           case InstructionType::callUnary:
           case InstructionType::callBinary:
           case InstructionType::callNular:

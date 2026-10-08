@@ -40,7 +40,8 @@ enum class InstructionType {
     assignTo,
     assignToLocal,
     getVariable,
-    makeArray
+    makeArray,
+    makeHashMap
 };
 
 
@@ -75,7 +76,8 @@ enum class ConstantType {
     scalar,
     boolean,
     array,
-    nularCommand
+    nularCommand,
+    hashMap
 };
 
 struct ScriptCodePiece {
@@ -249,6 +251,7 @@ public:
         case ConstantType::scalar: *this = other.GetScalar(); break;
         case ConstantType::boolean: *this = other.GetBool(); break;
         case ConstantType::array: *this = other.GetArray(); break;
+        case ConstantType::hashMap: *this = other.GetArray(); storedType = other.storedType; break;
         case ConstantType::nularCommand: *this = other.GetNularCommand(); break;
         }
         return *this;
@@ -427,6 +430,7 @@ inline void ScriptConstant::Destruct()
         *reinterpret_cast<float*>(buffer) = false;
         break;
     case ConstantType::array:
+    case ConstantType::hashMap:
         reinterpret_cast<ScriptConstantArray*>(buffer)->~ScriptConstantArray();
         break;
     case ConstantType::nularCommand:
@@ -463,6 +467,7 @@ inline bool ScriptConstant::operator==(const ScriptConstant &right) const
         case ConstantType::scalar: return GetScalar() == right.GetScalar();
         case ConstantType::boolean: return GetBool() == right.GetBool();
         case ConstantType::array: return GetArray() == right.GetArray();
+        case ConstantType::hashMap: return GetArray() == right.GetArray();
         case ConstantType::nularCommand: return GetNularCommand().commandName == right.GetNularCommand().commandName;
     }
 
@@ -480,7 +485,7 @@ inline bool ScriptConstantArray::operator==(const ScriptConstantArray& other) co
 }
 
 struct CompiledCodeData {
-    uint32_t version{1};
+    uint32_t version{2};
     uint64_t codeIndex; //index to main code in constants
     std::vector<ScriptConstant> constants;
     std::vector<STRINGTYPE> fileNames;

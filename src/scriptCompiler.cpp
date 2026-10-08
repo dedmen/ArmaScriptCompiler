@@ -633,7 +633,9 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
             instructions.emplace_back(ScriptInstruction{ InstructionType::makeArray, node.offset, getFileIndex(node.file), node.line, (uint16_t)node.children.size() });
         } break;
-
+        case InstructionType::makeHashMap: {
+            instructions.emplace_back(ScriptInstruction{ InstructionType::makeHashMap, node.offset, getFileIndex(node.file), node.line, {} });
+        } break;
 
         case InstructionType::endStatement: {
             for (size_t i = 0; i < node.children.size(); i++) {
