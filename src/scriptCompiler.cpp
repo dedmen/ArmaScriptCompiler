@@ -507,7 +507,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 ScriptConstantArray ScriptCompiler::ASTParseArray(CompiledCodeData& output, CompileTempData& temp, const OptimizerModuleBase::Node& node) const {
     ScriptConstantArray newConst;
     for (auto& it : node.children) {
-        if (it.value.index() == 0) {//is code
+        if (it.value.getType() == ConstantType::code) {
             ScriptCodePiece codeConst;
             std::vector<ScriptInstruction> instr;
             for (auto& codeIt : it.children) {
@@ -519,10 +519,10 @@ ScriptConstantArray ScriptCompiler::ASTParseArray(CompiledCodeData& output, Comp
                 instr.emplace_back(ScriptInstruction{ InstructionType::endStatement, node.offset, 0, 0 });
                 ASTToInstructions(output, temp, instr, codeIt);
             }
-            codeConst.contentString = std::get<ScriptCodePiece>(it.value).contentString;
+            codeConst.contentString = it.value.GetCode().contentString;
             codeConst.code = std::move(instr);
             newConst.content.emplace_back(std::move(codeConst));
-        } else if (it.value.index() == 4) {//array
+        } else if (it.value.getType() == ConstantType::array) {
             newConst.content.emplace_back(ASTParseArray(output, temp, it));
         } else {
             newConst.content.emplace_back(it.value);
@@ -548,7 +548,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
     switch (node.type) {
         case InstructionType::push: {
-            switch (getConstantType(node.value)) {
+            switch (node.value.getType()) {
                 case ConstantType::code: {//Code
                     ScriptConstant newConst;
                     std::vector<ScriptInstruction> instr;
@@ -558,15 +558,15 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
                     }
 
                     newConst = node.value;
-                    std::get<ScriptCodePiece>(newConst).code = std::move(instr);
+                    newConst.GetCode().code = std::move(instr);
                     auto index = output.AddConstant(std::move(newConst));
 
                     instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
                 } break;
-                case ConstantType::string: 
+                case ConstantType::string:
                 case ConstantType::scalar:
                 case ConstantType::boolean:
-                case ConstantType::nularCommand:                
+                case ConstantType::nularCommand:
                 {
                     auto index = output.AddConstant(node.value);
                     instructions.emplace_back(ScriptInstruction{ InstructionType::push, node.offset, getFileIndex(node.file), node.line, index });
@@ -584,7 +584,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
             
             ASTToInstructions(output, temp, instructions, node.children[0]);
             //push unary op
-            auto name = std::get<STRINGTYPE>(node.value);
+            auto name = node.value.GetString();
             std::transform(name.begin(), name.end(), name.begin(), ::tolower);
             instructions.emplace_back(ScriptInstruction{ InstructionType::callUnary, node.offset, getFileIndex(node.file), node.line, name });
 
@@ -597,7 +597,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
             //get right arg on stack
             ASTToInstructions(output, temp, instructions, node.children[1]);
             //push binary op
-            auto name = std::get<STRINGTYPE>(node.value);
+            auto name = node.value.GetString();
             std::transform(name.begin(), name.end(), name.begin(), ::tolower);
             instructions.emplace_back(ScriptInstruction{ InstructionType::callBinary, node.offset, getFileIndex(node.file), node.line, name });
 
@@ -605,7 +605,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
         } break;
         case InstructionType::callNular: {
-            auto name = std::get<STRINGTYPE>(node.value);
+            auto name = node.value.GetString();
             std::transform(name.begin(), name.end(), name.begin(), ::tolower);
             instructions.emplace_back(ScriptInstruction{ InstructionType::callNular, node.offset, getFileIndex(node.file), node.line, name });
 
@@ -613,7 +613,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
         case InstructionType::assignTo:
         case InstructionType::assignToLocal: {
             
-            auto varname = std::get<STRINGTYPE>(node.value);
+            auto varname = node.value.GetString();
             //need value on stack first
             ASTToInstructions(output, temp, instructions, node.children[0]);
             std::transform(varname.begin(), varname.end(), varname.begin(), ::tolower);
@@ -621,7 +621,7 @@ void ScriptCompiler::ASTToInstructions(CompiledCodeData& output, CompileTempData
 
         } break;
         case InstructionType::getVariable: {
-            auto varname = std::get<STRINGTYPE>(node.value);
+            auto varname = node.value.GetString();
             std::transform(varname.begin(), varname.end(), varname.begin(), ::tolower);
             instructions.emplace_back(ScriptInstruction{ InstructionType::getVariable, node.offset, getFileIndex(node.file), node.line, varname });
         } break;

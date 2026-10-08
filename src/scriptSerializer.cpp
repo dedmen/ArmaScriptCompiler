@@ -11,37 +11,47 @@ static constexpr const int compressionLevel = 22;
 void blaBla(const CompiledCodeData& code, const std::vector<ScriptInstruction>& inst, std::ostream& output);
 
 void blaBLaConstant(const CompiledCodeData& code, const ScriptConstant& constant, std::ostream& output, bool inArray = false) {
-    
-    switch (getConstantType(constant)) {
+
+    switch (constant.getType()) {
     case ConstantType::code:
+    {
         output << "push CODE {\n";
-        blaBla(code, std::get<0>(constant).code, output);
+
+        const auto& cde = constant.GetCode();
+        //#TODO
+        //if (!cde.contentSplit.isOffset)
+        //    output << Format("codeStr %llu", static_cast<uint64_t>(cde.contentString)) << "\n";
+        //else
+        //    output << Format("codeStr offs %u len %u", cde.contentSplit.offset, cde.contentSplit.length) << "\n";
+
+        blaBla(code, cde.code, output);
+
         output << "}\n";
-        break;
+    } break;
     case ConstantType::string:
         if (!inArray)
-            output << "push STRING " << std::get<STRINGTYPE>(constant) << "\n";
+            output << "push STRING " << constant.GetString() << "\n";
         else
-            output << std::get<STRINGTYPE>(constant) << ", ";
+            output << constant.GetString() << ", ";
         break;
     case ConstantType::scalar:
         if (!inArray)
-            output << "push SCALAR " << std::get<float>(constant) << "\n";
+            output << "push SCALAR " << constant.GetScalar() << "\n";
         else
-            output << std::get<float>(constant) << ", ";
+            output << constant.GetScalar() << ", ";
         break;
     case ConstantType::boolean:
         if (!inArray)
-            output << "push BOOL " << std::get<bool>(constant) << "\n";
+            output << "push BOOL " << constant.GetBool() << "\n";
         else
-            output << std::get<bool>(constant) << ", ";
+            output << constant.GetBool() << ", ";
         break;
     case ConstantType::array:
         if (!inArray)
             output << "push ARRAY [";
         else
             output << "[\n";
-        for (auto& it : std::get<4>(constant).content)
+        for (auto& it : constant.GetArray().content)
             blaBLaConstant(code, it, output, true);
         output.seekp(-2, SEEK_CUR);
         output << "]\n";
@@ -99,7 +109,7 @@ void ScriptSerializer::compiledToHumanReadable(const CompiledCodeData& code, std
 
     // array fuckup, no quotes on string constants inside the array
 
-    blaBla(code, std::get<0>(code.constants[code.codeIndex]).code, output);
+    blaBla(code, code.constants[code.codeIndex].GetCode().code, output);
 }
 
 /*
@@ -489,26 +499,28 @@ std::vector<ScriptInstruction> ScriptSerializer::binaryToInstructions(const Comp
 }
 
 void ScriptSerializer::writeConstant(const CompiledCodeData& code, const ScriptConstant& constant, std::ostream& output) {
-    auto type = getConstantType(constant);
+    auto type = constant.getType();
     writeT(static_cast<uint8_t>(type), output);
 
     switch (type) {
     case ConstantType::code: {
-        auto& instructions = std::get<ScriptCodePiece>(constant);
+        auto& instructions = constant.GetCode();
         writeT<uint64_t>(instructions.contentString, output);
         instructionsToBinary(code, instructions.code, output);
     } break;
     case ConstantType::string:
-        writeString(output, std::get<STRINGTYPE>(constant));
+        writeString(output, constant.GetString());
         break;
     case ConstantType::scalar:
-        writeT(std::get<float>(constant), output);
+        writeT(constant.GetScalar(), output);
         break;
     case ConstantType::boolean:
-        writeT(std::get<bool>(constant), output);
+        writeT(constant.GetBool(), output);
         break;
-    case ConstantType::array: {
-        auto& array = std::get<ScriptConstantArray>(constant);
+    case ConstantType::array: 
+    case ConstantType::hashMap:
+    {
+        auto& array = constant.GetArray();
         if (static_cast<uint32_t>(array.content.size()) != array.content.size()) // truncation
             __debugbreak();
         writeT<uint32_t>(static_cast<uint32_t>(array.content.size()), output);
@@ -517,14 +529,14 @@ void ScriptSerializer::writeConstant(const CompiledCodeData& code, const ScriptC
             writeConstant(code, cnst, output);
     } break;
     case ConstantType::nularCommand:
-        writeString(output, std::get<ScriptConstantNularCommand>(constant).commandName);
+        writeString(output, constant.GetNularCommand().commandName);
         break;
     default: __debugbreak();
     }
 }
 
 ScriptConstant ScriptSerializer::readConstant(CompiledCodeData& code, std::istream& input) {
-    
+
     auto typeRaw = readT<uint8_t>(input);
 
     auto type = static_cast<ConstantType>(typeRaw);
@@ -543,7 +555,8 @@ ScriptConstant ScriptSerializer::readConstant(CompiledCodeData& code, std::istre
             return readT<float>(input);
         case ConstantType::boolean: 
             return readT<bool>(input);
-        case ConstantType::array: {
+        case ConstantType::array:
+        {
             auto size = readT<uint32_t>(input);
             ScriptConstantArray arr;
             arr.content.reserve(size);
@@ -585,26 +598,26 @@ void ScriptSerializer::collectCommandNames(const CompiledCodeData& code, std::se
     std::function<void(const std::vector<ScriptConstant>&)> collectArray = [&directory, &collectArray](const std::vector<ScriptConstant>& content)
     {
         for (const auto& it : content) {
-            auto type = getConstantType(it);
+            auto type = it.getType();
             if (type == ConstantType::code) {
-                const auto& instructions = std::get<ScriptCodePiece>(it);
+                const auto& instructions = it.GetCode();
                 collectCommandNames(instructions.code, directory);
             }
             if (type == ConstantType::array) {
-                auto& array = std::get<ScriptConstantArray>(it);
+                auto& array = it.GetArray();
                 collectArray(array.content);
             }
         }
     };
 
     for (const auto& it : code.constants) {
-        auto type = getConstantType(it);
+        auto type = it.getType();
         if (type == ConstantType::code) {
-            const auto& instructions = std::get<ScriptCodePiece>(it);
+            const auto& instructions = it.GetCode();
             collectCommandNames(instructions.code, directory);
         }
         if (type == ConstantType::array) {
-            auto& array = std::get<ScriptConstantArray>(it);
+            auto& array = it.GetArray();
             collectArray(array.content);
         }
     }

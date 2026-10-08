@@ -33,21 +33,21 @@ public:
     }
 
     void processBinary(OptimizerModuleBase::Node& node) {
-        auto& cmdName = std::get<STRINGTYPE>(node.value);
+        auto& cmdName = node.value.GetString();
         auto found = binaryActions.find(cmdName);
         if (found != binaryActions.end())
             found->second(node);
     }
 
     void processUnary(OptimizerModuleBase::Node& node) {
-        auto& cmdName = std::get<STRINGTYPE>(node.value);
+        auto& cmdName = node.value.GetString();
         auto found = unaryActions.find(cmdName);
         if (found != unaryActions.end())
             found->second(node);
     }
 
     void processNulary(OptimizerModuleBase::Node& node) {
-        auto& cmdName = std::get<STRINGTYPE>(node.value);
+        auto& cmdName = node.value.GetString();
         auto found = nularyActions.find(cmdName);
         if (found != nularyActions.end())
             found->second(node);
@@ -90,7 +90,7 @@ private:
         binaryActions["-"] = [](OptimizerModuleBase::Node & node) -> void {
             ONLY_PUSH_BINARY;
 
-            auto type = getConstantType(node.children[0].value);
+            auto type = node.children[0].value.getType();
 
             //#TODO fix array, this is safe if both are const, see params need to convert arrays to constants and merge
             if (type == ConstantType::array) { //array
@@ -114,8 +114,8 @@ private:
                 //node.children[0].children = std::move(newNodes);
                 return;
             } else if (type == ConstantType::scalar) {//float
-                float leftArg = std::get<float>(node.children[0].value);
-                float rightArg = std::get<float>(node.children[1].value);
+                float leftArg = node.children[0].value.GetScalar();
+                float rightArg = node.children[1].value.GetScalar();
                 node.value = leftArg - rightArg;
             }
             else
@@ -131,12 +131,12 @@ private:
 
         binaryActions["/"] = [](OptimizerModuleBase::Node & node) -> void {
             ONLY_PUSH_BINARY;
-            auto type = getConstantType(node.children[0].value);
+            auto type = node.children[0].value.getType();
             if (type != ConstantType::scalar)
                 return;
 
-            float leftArg = std::get<float>(node.children[0].value);
-            float rightArg = std::get<float>(node.children[1].value);
+            float leftArg = node.children[0].value.GetScalar();
+            float rightArg = node.children[1].value.GetScalar();
         
             node.type = InstructionType::push;
             node.children.clear();
@@ -145,12 +145,12 @@ private:
         };
         binaryActions["*"] = [](OptimizerModuleBase::Node & node) -> void {
             ONLY_PUSH_BINARY;
-            auto type = getConstantType(node.children[0].value);
+            auto type = node.children[0].value.getType();
             if (type != ConstantType::scalar)
                 return;
 
-            float leftArg = std::get<float>(node.children[0].value);
-            float rightArg = std::get<float>(node.children[1].value);
+            float leftArg = node.children[0].value.GetScalar();
+            float rightArg = node.children[1].value.GetScalar();
 
             node.type = InstructionType::push;
             node.children.clear();
@@ -160,12 +160,12 @@ private:
 
         binaryActions["mod"] = [](OptimizerModuleBase::Node & node) -> void {
             ONLY_PUSH_BINARY;
-            auto type = getConstantType(node.children[0].value);
+            auto type = node.children[0].value.getType();
             if (type != ConstantType::scalar)
                 return;
 
-            float leftArg = std::get<float>(node.children[0].value);
-            float rightArg = std::get<float>(node.children[1].value);
+            float leftArg = node.children[0].value.GetScalar();
+            float rightArg = node.children[1].value.GetScalar();
 
             node.type = InstructionType::push;
             node.children.clear();
@@ -177,7 +177,7 @@ private:
 
     void setupUnary() {
         unaryActions["sqrt"] = [](OptimizerModuleBase::Node & node) -> void {
-            float rightArg = std::get<float>(node.children[0].value);
+            float rightArg = node.children[0].value.GetScalar();
 
             node.type = InstructionType::push;
             node.children.clear();
@@ -186,7 +186,7 @@ private:
         };
 
         unaryActions["!"] = [](OptimizerModuleBase::Node & node) -> void {
-            bool rightArg = std::get<bool>(node.children[0].value);
+            bool rightArg = node.children[0].value.GetScalar();
 
             node.type = InstructionType::push;
             node.children.clear();
@@ -242,7 +242,7 @@ private:
                 for (auto& it : paramsList)
                 {
                     //#TODO throw warning on empty array passed to params?
-                    if (!it.children.empty() && std::holds_alternative<ScriptConstantArray>(it.value)) // is array, and is not empty
+                    if (!it.children.empty() && it.value.getType() == ConstantType::array) // is array, and is not empty
                     {
                         // it is a [name, default, allowedTypes] array
                         auto& paramArguments = it.children;
@@ -250,7 +250,7 @@ private:
                         if (paramArguments.size() < 2) // only [name], no defaults, don't care
                             continue;
 
-                        if (std::holds_alternative<ScriptConstantArray>(paramArguments[1].value))
+                        if (paramArguments[1].value.getType() == ConstantType::array)
                         {
                             // !!! [name, []] the array will be passed down by ref if parameter is not provided, and cause changes to propagate/persist to compiled code if modified by reference
                             // We know that this will be a problem, lets insert a array copy

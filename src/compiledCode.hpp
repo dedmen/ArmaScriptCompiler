@@ -132,35 +132,338 @@ struct ScriptConstantNularCommand {
 
 struct ScriptConstantArray;
 
-using ScriptConstant = std::variant<ScriptCodePiece, STRINGTYPE, float, bool, ScriptConstantArray, ScriptConstantNularCommand>;
+
+template <class Type, typename... Args>
+__forceinline auto ConstructAtArgs(void* dst, Args&&... args ) { return ::new(dst) Type(::std::forward<Args>(args)...); }
+
+class ScriptConstant
+{
+    ConstantType storedType = ConstantType::boolean;
+    // size of biggest possible member
+    union
+    {
+        char buffer[std::max(sizeof(ScriptCodePiece), sizeof(std::string))]; // This needs to be the biggest type
+        //ScriptCodePiece _code;
+        //RString _string;
+        float _float;
+        bool _bool;
+    };
+
+
+    void Destruct();
+public:
+
+    ConstantType getType() const {
+        return storedType;
+    }
+
+    void forceSetType(ConstantType newType) {
+        storedType = newType;
+    }
+
+    ScriptConstant() {}
+    ~ScriptConstant() { Destruct(); }
+
+
+
+    ScriptConstant(ScriptConstant&& other)
+    {
+        //memset(buffer, 0, sizeof(buffer));
+        *this = std::move(other);
+    }
+
+    ScriptConstant(const ScriptConstant& other)
+    {
+        //memset(buffer, 0, sizeof(buffer));
+        *this = other;
+    }
+
+    ScriptConstant(const ScriptCodePiece& code)
+    {
+        //memset(buffer, 0, sizeof(buffer));
+        *this = code;
+    }
+
+    ScriptConstant(ScriptCodePiece&& code)
+    {
+        //memset(buffer, 0, sizeof(buffer));
+        *this = std::move(code);
+    }
+
+    ScriptConstant(const STRINGTYPE& string)
+    {
+        //memset(buffer, 0, sizeof(buffer));
+        *this = string;
+    }
+
+    ScriptConstant(STRINGTYPE&& string)
+    {
+        //memset(buffer, 0, sizeof(buffer));
+        *this = std::move(string);
+    }
+
+    ScriptConstant(float scalar)
+    {
+        //memset(buffer, 0, sizeof(buffer));
+        *this = scalar;
+    }
+
+    ScriptConstant(bool boolean)
+    {
+        //memset(buffer, 0, sizeof(buffer));
+        *this = boolean;
+    }
+
+    ScriptConstant(const ScriptConstantArray& arr)
+    {
+        //memset(buffer, 0, sizeof(buffer));
+        *this = arr;
+    }
+
+    ScriptConstant(ScriptConstantArray&& arr)
+    {
+        //memset(buffer, 0, sizeof(buffer));
+        *this = std::move(arr);
+    }
+
+    ScriptConstant(const ScriptConstantNularCommand& arr)
+    {
+        //memset(buffer, 0, sizeof(buffer));
+        *this = arr;
+    }
+
+    ScriptConstant(ScriptConstantNularCommand&& arr)
+    {
+        //memset(buffer, 0, sizeof(buffer));
+        *this = std::move(arr);
+    }
+
+    // I could've done this with templates, but now I don't feel like changing it again
+
+    inline ScriptConstant& operator=(const ScriptConstant& other)
+    {
+        switch (other.storedType)
+        {
+        case ConstantType::code: *this = other.GetCode(); break;
+        case ConstantType::string: *this = other.GetString(); break;
+        case ConstantType::scalar: *this = other.GetScalar(); break;
+        case ConstantType::boolean: *this = other.GetBool(); break;
+        case ConstantType::array: *this = other.GetArray(); break;
+        case ConstantType::nularCommand: *this = other.GetNularCommand(); break;
+        }
+        return *this;
+    }
+
+    inline ScriptConstant& operator=(ScriptConstant&& other)
+    {
+        Destruct();
+        storedType = other.storedType;
+        memmove(buffer, other.buffer, sizeof(buffer));
+        other.storedType = ConstantType::boolean; // This basically clears other, no need to empty out its buffer
+        return *this;
+    }
+
+    inline ScriptConstant& operator=(const ScriptCodePiece& code)
+    {
+        Destruct();
+        storedType = ConstantType::code;
+        ConstructAtArgs<ScriptCodePiece>(buffer, code);
+        return *this;
+    }
+
+    inline ScriptConstant& operator=(ScriptCodePiece&& code)
+    {
+        Destruct();
+        storedType = ConstantType::code;
+        ConstructAtArgs<ScriptCodePiece>(buffer, std::move(code));
+        return *this;
+    }
+
+    inline ScriptConstant& operator=(const STRINGTYPE& string)
+    {
+        Destruct();
+        storedType = ConstantType::string;
+        ConstructAtArgs<STRINGTYPE>(buffer, string);
+        return *this;
+    }
+
+    inline ScriptConstant& operator=(STRINGTYPE&& string)
+    {
+        Destruct();
+        storedType = ConstantType::string;
+        ConstructAtArgs<STRINGTYPE>(buffer, std::move(string));
+        return *this;
+    }
+
+    inline ScriptConstant& operator=(float scalar)
+    {
+        Destruct();
+        storedType = ConstantType::scalar;
+        ConstructAtArgs<float>(buffer, scalar);
+        return *this;
+    }
+
+    inline ScriptConstant& operator=(bool boolean)
+    {
+        Destruct();
+        storedType = ConstantType::boolean;
+        ConstructAtArgs<bool>(buffer, boolean);
+        return *this;
+    }
+
+    inline ScriptConstant &operator=(const ScriptConstantArray &arr);
+
+    inline ScriptConstant &operator=(ScriptConstantArray &&arr);
+
+
+    inline ScriptConstant& operator=(const ScriptConstantNularCommand& cmd)
+    {
+        Destruct();
+        storedType = ConstantType::nularCommand;
+        ConstructAtArgs<ScriptConstantNularCommand>(buffer, cmd);
+        return *this;
+    }
+
+    inline ScriptConstant& operator=(ScriptConstantNularCommand&& cmd)
+    {
+        Destruct();
+        storedType = ConstantType::nularCommand;
+        ConstructAtArgs<ScriptConstantNularCommand>(buffer, std::move(cmd));
+        return *this;
+    }
+
+    inline ScriptCodePiece& GetCode()
+    {
+        //Assert(storedType == ConstantType::code);
+        return *reinterpret_cast<ScriptCodePiece*>(buffer);
+    }
+
+    inline STRINGTYPE& GetString()
+    {
+        //Assert(storedType == ConstantType::string);
+        return *reinterpret_cast<STRINGTYPE*>(buffer);
+    }
+
+    inline float& GetScalar()
+    {
+        //Assert(storedType == ConstantType::scalar);
+        return *reinterpret_cast<float*>(buffer);
+    }
+
+    inline bool& GetBool()
+    {
+        //Assert(storedType == ConstantType::boolean);
+        return *reinterpret_cast<bool*>(buffer);
+    }
+
+    inline ScriptConstantArray& GetArray()
+    {
+        //Assert(storedType == ConstantType::array);
+        return *reinterpret_cast<ScriptConstantArray*>(buffer);
+    }
+
+    inline const ScriptCodePiece& GetCode() const
+    {
+        //Assert(storedType == ConstantType::code);
+        return *reinterpret_cast<const ScriptCodePiece*>(buffer);
+    }
+
+    inline const STRINGTYPE& GetString() const
+    {
+        //Assert(storedType == ConstantType::string);
+        return *reinterpret_cast<const STRINGTYPE*>(buffer);
+    }
+
+    inline const float& GetScalar() const
+    {
+        //Assert(storedType == ConstantType::scalar);
+        return *reinterpret_cast<const float*>(buffer);
+    }
+
+    inline const bool& GetBool() const
+    {
+        //Assert(storedType == ConstantType::boolean);
+        return *reinterpret_cast<const bool*>(buffer);
+    }
+
+    inline const ScriptConstantArray& GetArray() const
+    {
+        //Assert(storedType == ConstantType::array);
+        return *reinterpret_cast<const ScriptConstantArray*>(buffer);
+    }
+
+    inline const ScriptConstantNularCommand& GetNularCommand() const
+    {
+        //Assert(storedType == ConstantType::nularCommand);
+        return *reinterpret_cast<const ScriptConstantNularCommand*>(buffer);
+    }
+
+
+
+    bool operator==(const ScriptConstant& right) const;
+
+    // void GetHash(FNV1A_Hash& hash) const;
+};
 
 struct ScriptConstantArray {
     std::vector<ScriptConstant> content;
     bool operator==(const ScriptConstantArray& other) const;
 };
 
-constexpr ConstantType getConstantType(const ScriptConstant& c) {
-    switch (c.index()) {
-        case 0: return ConstantType::code;
-        case 1: return ConstantType::string;
-        case 2: return ConstantType::scalar;
-        case 3: return ConstantType::boolean;
-        case 4: return ConstantType::array;
-        case 5: return ConstantType::nularCommand;
+inline void ScriptConstant::Destruct()
+{
+    switch (storedType)
+    {
+    case ConstantType::code:
+        reinterpret_cast<ScriptCodePiece*>(buffer)->~ScriptCodePiece();
+        break;
+    case ConstantType::string:
+        reinterpret_cast<STRINGTYPE*>(buffer)->clear();
+        break;
+    case ConstantType::scalar:
+        *reinterpret_cast<float*>(buffer) = 0.f;
+        break;
+    case ConstantType::boolean:
+        *reinterpret_cast<float*>(buffer) = false;
+        break;
+    case ConstantType::array:
+        reinterpret_cast<ScriptConstantArray*>(buffer)->~ScriptConstantArray();
+        break;
+    case ConstantType::nularCommand:
+        reinterpret_cast<ScriptConstantNularCommand*>(buffer)->~ScriptConstantNularCommand();
+        break;
     }
-    __debugbreak();
+
+    storedType = ConstantType::boolean; // We are gone now
 }
 
 
-inline bool operator==(const ScriptConstant& left, const ScriptConstant& right) {
-    if (left.index() != right.index()) return false;
-    switch (getConstantType(left)) {
-        case ConstantType::code: return std::get<ScriptCodePiece>(left) == std::get<ScriptCodePiece>(right); break;
-        case ConstantType::string: return std::get<STRINGTYPE>(left) == std::get<STRINGTYPE>(right);
-        case ConstantType::scalar: return std::get<float>(left) == std::get<float>(right);
-        case ConstantType::boolean: return std::get<bool>(left) == std::get<bool>(right);
-        case ConstantType::array:return std::get<ScriptConstantArray>(left) == std::get<ScriptConstantArray>(right);
-        case ConstantType::nularCommand:return std::get<ScriptConstantNularCommand>(left).commandName == std::get<ScriptConstantNularCommand>(right).commandName;
+ScriptConstant& ScriptConstant::operator=(const ScriptConstantArray& arr)
+{
+    Destruct();
+    storedType = ConstantType::array;
+    ConstructAtArgs<ScriptConstantArray>(buffer, arr);
+    return *this;
+}
+
+ScriptConstant& ScriptConstant::operator=(ScriptConstantArray&& arr)
+{
+    Destruct();
+    storedType = ConstantType::array;
+    ConstructAtArgs<ScriptConstantArray>(buffer, std::move(arr));
+    return *this;
+}
+
+inline bool ScriptConstant::operator==(const ScriptConstant &right) const
+{
+    if (storedType != right.storedType) return false;
+    switch (storedType) {
+        case ConstantType::code: return GetCode() == right.GetCode(); break;
+        case ConstantType::string: return GetString() == right.GetString();
+        case ConstantType::scalar: return GetScalar() == right.GetScalar();
+        case ConstantType::boolean: return GetBool() == right.GetBool();
+        case ConstantType::array: return GetArray() == right.GetArray();
+        case ConstantType::nularCommand: return GetNularCommand().commandName == right.GetNularCommand().commandName;
     }
 
     return false;
