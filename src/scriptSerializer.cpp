@@ -10,7 +10,7 @@ static constexpr const int compressionLevel = 22;
 
 // Versions:
 // 1: Base
-// 2: Adds hashMap constant, adds makeHashMap instruction, changes serialized size of makeArray instruction argument from uint16 to uint32
+// 2: Adds hashMap constant, adds makeHashMap instruction, changes serialized size of makeArray instruction argument from uint16 to uint32, adds "flags" byte to Array/Hashmap constants
 
 
 void blaBla(const CompiledCodeData& code, const std::vector<ScriptInstruction>& inst, std::ostream& output);
@@ -565,6 +565,7 @@ void ScriptSerializer::writeConstant(const CompiledCodeData& code, const ScriptC
         if (static_cast<uint32_t>(array.content.size()) != array.content.size()) // truncation
             __debugbreak();
         writeT<uint32_t>(static_cast<uint32_t>(array.content.size()), output);
+        writeT<uint8_t>(0, output); // Read only flag could be here
 
         for (auto& cnst : array.content)
             writeConstant(code, cnst, output);
@@ -600,6 +601,7 @@ ScriptConstant ScriptSerializer::readConstant(CompiledCodeData& code, std::istre
         case ConstantType::hashMap:
         {
             auto size = readT<uint32_t>(input);
+            auto flags = readT<uint8_t>(input); // Read only flag
 
             if (type == ConstantType::hashMap && size % 2 != 0)
             {
@@ -620,7 +622,7 @@ ScriptConstant ScriptSerializer::readConstant(CompiledCodeData& code, std::istre
 
             return res;
         } break;
-        case ConstantType::nularCommand: 
+        case ConstantType::nularCommand:
             return ScriptConstantNularCommand(readString(input));
         default: __debugbreak();
     }
